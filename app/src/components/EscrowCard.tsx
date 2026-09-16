@@ -5,10 +5,15 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { useAnchorProgram } from "@/hooks/useAnchorProgram";
 import { EscrowData } from "@/hooks/useEscrows";
+import RaiseDisputeForm from "./RaiseDisputeForm";
+import DisputeEvidence from "./DisputeEvidence";
+import ResolveWithAiButton from "./ResolveWithAiButton";
+import DisputeResolution from "./DisputeResolution";
 
 const statusLabels: Record<string, string> = {
     awaitingAcceptance: "Awaiting Acceptance",
     active: "Active",
+    disputed: "Disputed",
     completed: "Completed",
     refunded: "Refunded",
 };
@@ -16,6 +21,7 @@ const statusLabels: Record<string, string> = {
 const statusColors: Record<string, string> = {
     awaitingAcceptance: "bg-yellow-600",
     active: "bg-blue-600",
+    disputed: "bg-red-700",
     completed: "bg-green-600",
     refunded: "bg-gray-600",
 };
@@ -31,6 +37,7 @@ export function EscrowCard({
     const { program } = useAnchorProgram();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showDisputeForm, setShowDisputeForm] = useState(false);
 
     const isClient = publicKey?.toBase58() === escrow.client;
     const isExpert = publicKey?.toBase58() === escrow.expert;
@@ -132,7 +139,45 @@ export function EscrowCard({
                         {loading ? "Processing..." : "Release Funds"}
                     </button>
                 )}
+
+                {(isClient || isExpert) && escrow.status === "active" && (
+                    <button
+                        onClick={() => setShowDisputeForm((v) => !v)}
+                        disabled={loading}
+                        className="px-3 py-2 rounded-md bg-red-900 hover:bg-red-800 disabled:opacity-50 text-sm font-medium"
+                    >
+                        {showDisputeForm ? "Cancel" : "Raise Dispute"}
+                    </button>
+                )}
+
+                {escrow.status === "disputed" && (
+                    <ResolveWithAiButton
+                        escrowAddress={escrow.publicKey}
+                        onResolved={onActionComplete}
+                    />
+                )}
             </div>
+
+            {showDisputeForm && (
+                <RaiseDisputeForm
+                    escrowAddress={escrow.publicKey}
+                    role={isClient ? "client" : "expert"}
+                    onDisputeRaised={() => {
+                        setShowDisputeForm(false);
+                        onActionComplete();
+                    }}
+                />
+            )}
+
+            {escrow.status === "disputed" && (
+                <DisputeEvidence escrowAddress={escrow.publicKey} />
+            )}
+
+            {(escrow.status === "disputed" ||
+                escrow.status === "completed" ||
+                escrow.status === "refunded") && (
+                    <DisputeResolution escrowAddress={escrow.publicKey} />
+                )}
 
             {error && <p className="text-xs text-red-400 break-all">{error}</p>}
         </div>

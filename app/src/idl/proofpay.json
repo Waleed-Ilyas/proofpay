@@ -174,6 +174,94 @@
       ]
     },
     {
+      "name": "raise_dispute",
+      "discriminator": [
+        41,
+        243,
+        1,
+        51,
+        150,
+        95,
+        246,
+        73
+      ],
+      "accounts": [
+        {
+          "name": "raiser",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.client",
+                "account": "Escrow"
+              },
+              {
+                "kind": "account",
+                "path": "escrow.expert",
+                "account": "Escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "dispute",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  105,
+                  115,
+                  112,
+                  117,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "evidence_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "release_escrow",
       "discriminator": [
         146,
@@ -230,9 +318,110 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "resolve_dispute",
+      "discriminator": [
+        231,
+        6,
+        202,
+        6,
+        96,
+        103,
+        12,
+        230
+      ],
+      "accounts": [
+        {
+          "name": "validator",
+          "docs": [
+            "Only this specific key can resolve disputes — our backend's AI",
+            "verification service holds this key and signs after reaching a verdict."
+          ],
+          "signer": true
+        },
+        {
+          "name": "client",
+          "writable": true
+        },
+        {
+          "name": "expert",
+          "writable": true
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "client"
+              },
+              {
+                "kind": "account",
+                "path": "expert"
+              }
+            ]
+          }
+        },
+        {
+          "name": "dispute",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  105,
+                  115,
+                  112,
+                  117,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "favor_expert",
+          "type": "bool"
+        }
+      ]
     }
   ],
   "accounts": [
+    {
+      "name": "Dispute",
+      "discriminator": [
+        36,
+        49,
+        241,
+        67,
+        40,
+        36,
+        241,
+        74
+      ]
+    },
     {
       "name": "Escrow",
       "discriminator": [
@@ -267,9 +456,97 @@
       "code": 6003,
       "name": "InsufficientFunds",
       "msg": "The escrow does not have sufficient funds for this operation"
+    },
+    {
+      "code": 6004,
+      "name": "UnauthorizedDisputeRaiser",
+      "msg": "Only the client or expert on this escrow can raise a dispute"
+    },
+    {
+      "code": 6005,
+      "name": "DisputeAlreadyResolved",
+      "msg": "This dispute has already been resolved"
+    },
+    {
+      "code": 6006,
+      "name": "UnauthorizedValidator",
+      "msg": "Only the authorized validator can resolve disputes"
     }
   ],
   "types": [
+    {
+      "name": "Dispute",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "escrow",
+            "docs": [
+              "The escrow this dispute belongs to"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "raised_by",
+            "docs": [
+              "Who raised the dispute"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "evidence_hash",
+            "docs": [
+              "Short reason/evidence hash provided by whoever raised it. We store a",
+              "fixed-size hash on-chain (e.g. SHA-256 of the full evidence text/files),",
+              "with the actual evidence content kept off-chain (Supabase) for size reasons."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "docs": [
+              "Current status of the dispute itself"
+            ],
+            "type": {
+              "defined": {
+                "name": "DisputeStatus"
+              }
+            }
+          },
+          {
+            "name": "resolved_in_favor_of_expert",
+            "docs": [
+              "Set once resolved: true if the ruling favored the expert (funds released),",
+              "false if it favored the client (funds refunded)"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DisputeStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Resolved"
+          }
+        ]
+      }
+    },
     {
       "name": "Escrow",
       "type": {
@@ -329,6 +606,9 @@
             "name": "Active"
           },
           {
+            "name": "Disputed"
+          },
+          {
             "name": "Completed"
           },
           {
@@ -340,19 +620,15 @@
   ],
   "constants": [
     {
-      "name": "COUNTER_SEED",
-      "type": "bytes",
-      "value": "[99, 111, 117, 110, 116, 101, 114]"
-    },
-    {
-      "name": "HELLO_WORLD_LAMPORTS",
-      "type": "u64",
-      "value": "1"
-    },
-    {
-      "name": "MAX_COUNT",
-      "type": "u64",
-      "value": "10"
+      "name": "VALIDATOR_AUTHORITY",
+      "docs": [
+        "The public key authorized to resolve disputes. In this MVP, this key",
+        "is held by our off-chain backend, which calls Claude to analyze dispute",
+        "evidence, then signs the resolution transaction with this key. A future",
+        "version would replace this with a decentralized validator/staking system."
+      ],
+      "type": "pubkey",
+      "value": "EgEs66rzfECcwdvbhj1xt996Lj5ieCsRmg6uv5EgEVzp"
     }
   ]
 }
