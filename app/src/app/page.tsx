@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { CreateEscrowForm } from "@/components/CreateEscrowForm";
 
 const WalletMultiButton = dynamic(
   () =>
@@ -28,6 +29,8 @@ export default function Home() {
           Connected: {publicKey.toBase58()}
         </p>
       )}
+
+      {connected && <CreateEscrowForm />}
     </main>
   );
 }
