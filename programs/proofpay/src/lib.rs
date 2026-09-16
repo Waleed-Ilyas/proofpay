@@ -23,4 +23,12 @@ pub mod proofpay {
     pub fn accept_escrow(ctx: Context<AcceptEscrow>) -> Result<()> {
         crate::instructions::accept_escrow::handle_accept_escrow(ctx)
     }
+
+    pub fn release_escrow(ctx: Context<ReleaseEscrow>) -> Result<()> {
+        crate::instructions::release_escrow::handle_release_escrow(ctx)
+    }
+
+    pub fn cancel_escrow(ctx: Context<CancelEscrow>) -> Result<()> {
+        crate::instructions::cancel_escrow::handle_cancel_escrow(ctx)
+    }
 }
