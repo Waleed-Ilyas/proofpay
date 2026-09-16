@@ -31,4 +31,12 @@ pub mod proofpay {
     pub fn cancel_escrow(ctx: Context<CancelEscrow>) -> Result<()> {
         crate::instructions::cancel_escrow::handle_cancel_escrow(ctx)
     }
+
+    pub fn raise_dispute(ctx: Context<RaiseDispute>, evidence_hash: [u8; 32]) -> Result<()> {
+        crate::instructions::raise_dispute::handle_raise_dispute(ctx, evidence_hash)
+    }
+
+    pub fn resolve_dispute(ctx: Context<ResolveDispute>, favor_expert: bool) -> Result<()> {
+        crate::instructions::resolve_dispute::handle_resolve_dispute(ctx, favor_expert)
+    }
 }

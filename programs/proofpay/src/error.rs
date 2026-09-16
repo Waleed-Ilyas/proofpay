@@ -13,4 +13,13 @@ pub enum ProofPayError {
 
     #[msg("The escrow does not have sufficient funds for this operation")]
     InsufficientFunds,
+
+    #[msg("Only the client or expert on this escrow can raise a dispute")]
+    UnauthorizedDisputeRaiser,
+
+    #[msg("This dispute has already been resolved")]
+    DisputeAlreadyResolved,
+
+    #[msg("Only the authorized validator can resolve disputes")]
+    UnauthorizedValidator,
 }

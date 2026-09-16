@@ -2,6 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { assert } from "chai";
+import * as fs from "fs";
 
 describe("proofpay", () => {
     const provider = anchor.AnchorProvider.env();
@@ -150,6 +151,126 @@ describe("proofpay", () => {
 
             const clientBalanceAfter = await provider.connection.getBalance(client2.publicKey);
             assert.isAbove(clientBalanceAfter, clientBalanceBefore);
+        });
+    });
+
+    describe("dispute flow", () => {
+        const client3 = anchor.web3.Keypair.generate();
+        const expert3 = anchor.web3.Keypair.generate();
+        let escrowPda3: PublicKey;
+        let disputePda: PublicKey;
+        const disputeAmount = 0.5 * LAMPORTS_PER_SOL;
+
+        // This is your validator-authority.json keypair, loaded so the test can
+        // sign as the validator, exactly like your backend will.
+        const validatorSecret = JSON.parse(
+            fs.readFileSync("./validator-authority.json", "utf-8")
+        );
+        const validator = anchor.web3.Keypair.fromSecretKey(
+            new Uint8Array(validatorSecret)
+        );
+
+        before(async () => {
+            const airdrop1 = await provider.connection.requestAirdrop(
+                client3.publicKey,
+                2 * LAMPORTS_PER_SOL
+            );
+            await provider.connection.confirmTransaction(airdrop1);
+
+            const airdrop2 = await provider.connection.requestAirdrop(
+                expert3.publicKey,
+                1 * LAMPORTS_PER_SOL
+            );
+            await provider.connection.confirmTransaction(airdrop2);
+
+            [escrowPda3] = PublicKey.findProgramAddressSync(
+                [
+                    Buffer.from("escrow"),
+                    client3.publicKey.toBuffer(),
+                    expert3.publicKey.toBuffer(),
+                ],
+                program.programId
+            );
+
+            [disputePda] = PublicKey.findProgramAddressSync(
+                [Buffer.from("dispute"), escrowPda3.toBuffer()],
+                program.programId
+            );
+
+            await program.methods
+                .createEscrow(new anchor.BN(disputeAmount))
+                .accounts({
+                    client: client3.publicKey,
+                    expert: expert3.publicKey,
+                    escrow: escrowPda3,
+                    systemProgram: SystemProgram.programId,
+                })
+                .signers([client3])
+                .rpc();
+
+            await program.methods
+                .acceptEscrow()
+                .accounts({
+                    expert: expert3.publicKey,
+                    escrow: escrowPda3,
+                })
+                .signers([expert3])
+                .rpc();
+        });
+
+        it("lets the client raise a dispute", async () => {
+            const fakeEvidenceHash = new Array(32).fill(1);
+
+            await program.methods
+                .raiseDispute(fakeEvidenceHash)
+                .accounts({
+                    raiser: client3.publicKey,
+                    escrow: escrowPda3,
+                    dispute: disputePda,
+                    systemProgram: SystemProgram.programId,
+                })
+                .signers([client3])
+                .rpc();
+
+            const escrowAccount = await program.account.escrow.fetch(escrowPda3);
+            assert.deepEqual(escrowAccount.status, { disputed: {} });
+
+            const disputeAccount = await program.account.dispute.fetch(disputePda);
+            assert.deepEqual(disputeAccount.status, { open: {} });
+            assert.strictEqual(
+                disputeAccount.raisedBy.toBase58(),
+                client3.publicKey.toBase58()
+            );
+        });
+
+        it("lets the validator resolve the dispute in favor of the expert", async () => {
+            const expertBalanceBefore = await provider.connection.getBalance(
+                expert3.publicKey
+            );
+
+            await program.methods
+                .resolveDispute(true)
+                .accounts({
+                    validator: validator.publicKey,
+                    client: client3.publicKey,
+                    expert: expert3.publicKey,
+                    escrow: escrowPda3,
+                    dispute: disputePda,
+                })
+                .signers([validator])
+                .rpc();
+
+            const escrowAccount = await program.account.escrow.fetch(escrowPda3);
+            assert.deepEqual(escrowAccount.status, { completed: {} });
+
+            const disputeAccount = await program.account.dispute.fetch(disputePda);
+            assert.deepEqual(disputeAccount.status, { resolved: {} });
+            assert.strictEqual(disputeAccount.resolvedInFavorOfExpert, true);
+
+            const expertBalanceAfter = await provider.connection.getBalance(
+                expert3.publicKey
+            );
+            assert.isAbove(expertBalanceAfter, expertBalanceBefore);
         });
     });
 });
