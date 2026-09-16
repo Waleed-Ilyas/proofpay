@@ -8,7 +8,7 @@ import { useAnchorProgram } from "@/hooks/useAnchorProgram";
 
 
 
-export function CreateEscrowForm() {
+export function CreateEscrowForm({ onCreated }: { onCreated?: () => void }) {
     const { publicKey } = useWallet();
     const { program } = useAnchorProgram();
 
@@ -65,6 +65,7 @@ export function CreateEscrowForm() {
             setStatus(`✅ Escrow created! Address: ${escrowPda.toBase58()}`);
             setExpertAddress("");
             setAmount("");
+            onCreated?.();
         } catch (err: any) {
             console.error(err);
             setStatus(`❌ Failed: ${err.message ?? "Unknown error"}`);
