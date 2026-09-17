@@ -13,6 +13,14 @@ const supabaseAdmin = createClient(
 );
 
 function loadValidatorKeypair(): Keypair {
+    // In a deployed environment the keypair comes from an env var, since the
+    // gitignored JSON file isn't part of the build. Locally we fall back to
+    // reading the file, so development behaviour is unchanged.
+    const fromEnv = process.env.VALIDATOR_SECRET_KEY;
+    if (fromEnv) {
+        return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fromEnv)));
+    }
+
     const keypairPath = path.join(process.cwd(), "validator-authority.json");
     const raw = fs.readFileSync(keypairPath, "utf-8");
     const secretKey = Uint8Array.from(JSON.parse(raw));
