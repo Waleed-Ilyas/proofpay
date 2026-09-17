@@ -45,11 +45,12 @@ export default function DisputeResolution({
     if (loading || !resolution) return null;
 
     return (
-        <div className="mt-3 p-3 rounded-md border border-purple-800 bg-purple-950/30">
-            <p className="text-sm font-medium text-purple-300 mb-1">
-                AI Resolution: Funds released to {resolution.favor_expert ? "Expert" : "Client"}
+        <div className="mt-3 p-4 rounded-sm border border-[#3F6B4F] bg-[#3F6B4F]/10 pp-verdict-in">
+            <p className="font-display text-base text-[#7FA88C] mb-1.5">
+                Arbitrator ruled for the {resolution.favor_expert ? "expert" : "client"}
             </p>
-            <p className="text-sm text-gray-300">{resolution.reasoning}</p>
+            <p className="text-sm text-[#9AA0AC]">{resolution.reasoning}</p>
         </div>
+
     );
 }

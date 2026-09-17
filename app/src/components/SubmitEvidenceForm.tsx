@@ -1,16 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
-import { useAnchorProgram } from "@/hooks/useAnchorProgram";
 import { supabase } from "@/lib/supabase";
-import { sha256ToBytes, sha256ToHex } from "@/lib/hash";
+import { sha256ToHex } from "@/lib/hash";
 
-interface RaiseDisputeFormProps {
+interface SubmitEvidenceFormProps {
     escrowAddress: string;
+    submittedBy: string;
     role: "client" | "expert";
-    onDisputeRaised: () => void;
+    onSubmitted: () => void;
 }
 
 async function uploadAttachment(
@@ -34,34 +32,28 @@ async function uploadAttachment(
     return data.publicUrl;
 }
 
-export default function RaiseDisputeForm({
+export default function SubmitEvidenceForm({
     escrowAddress,
+    submittedBy,
     role,
-    onDisputeRaised,
-}: RaiseDisputeFormProps) {
-    const { publicKey } = useWallet();
-    const { program } = useAnchorProgram();
-
+    onSubmitted,
+}: SubmitEvidenceFormProps) {
     const [evidence, setEvidence] = useState("");
     const [file, setFile] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [submittedOnce, setSubmittedOnce] = useState(false);
 
     async function handleSubmit() {
         setError(null);
 
         if (!evidence.trim()) {
-            setError("Describe what happened before submitting.");
-            return;
-        }
-        if (!program || !publicKey) {
-            setError("Wallet isn't ready yet. Try again in a moment.");
+            setError("Describe your side before submitting.");
             return;
         }
 
         setSubmitting(true);
         try {
-            const hashBytes = await sha256ToBytes(evidence);
             const hashHex = await sha256ToHex(evidence);
 
             let attachmentUrl: string | null = null;
@@ -73,7 +65,7 @@ export default function RaiseDisputeForm({
                 .from("dispute_evidence")
                 .insert({
                     escrow_address: escrowAddress,
-                    submitted_by: publicKey.toBase58(),
+                    submitted_by: submittedBy,
                     role,
                     content: evidence,
                     evidence_hash: hashHex,
@@ -84,40 +76,27 @@ export default function RaiseDisputeForm({
                 throw new Error(`Supabase insert failed: ${supabaseError.message}`);
             }
 
-            const escrowPubkey = new PublicKey(escrowAddress);
-            const [disputePda] = PublicKey.findProgramAddressSync(
-                [Buffer.from("dispute"), escrowPubkey.toBuffer()],
-                program.programId
-            );
-
-            await program.methods
-                .raiseDispute(hashBytes)
-                .accounts({
-                    raiser: publicKey,
-                    escrow: escrowPubkey,
-                    dispute: disputePda,
-                    systemProgram: SystemProgram.programId,
-                })
-                .rpc();
-
             setEvidence("");
             setFile(null);
-            onDisputeRaised();
+            setSubmittedOnce(true);
+            onSubmitted();
         } catch (err: any) {
             console.error(err);
-            setError(err.message ?? "The dispute didn't go through. Try again.");
+            setError(err.message ?? "Your evidence didn't save. Try again.");
         } finally {
             setSubmitting(false);
         }
     }
 
     return (
-        <div className="mt-3 p-4 border border-[#9A4B3F] rounded-sm bg-[#9A4B3F]/10">
-            <p className="text-sm font-medium text-[#C77A6C] mb-2">Raise a dispute</p>
+        <div className="mt-3 p-4 border border-[#2A2E3A] rounded-sm bg-[#10121A]">
+            <p className="text-sm font-medium text-[#B08D33] mb-2">
+                {submittedOnce ? "Update your evidence" : "Submit your evidence"}
+            </p>
             <textarea
-                className="w-full border border-[#2A2E3A] rounded-sm p-2.5 text-sm bg-[#10121A] text-[#EDE6D6] placeholder:text-[#5A606C] focus:outline-none focus:border-[#9A4B3F] transition-colors"
-                rows={4}
-                placeholder="What went wrong, and why are you disputing?"
+                className="w-full border border-[#2A2E3A] rounded-sm p-2.5 text-sm bg-[#171A24] text-[#EDE6D6] placeholder:text-[#5A606C] focus:outline-none focus:border-[#B08D33] transition-colors"
+                rows={3}
+                placeholder="What happened, from your side?"
                 value={evidence}
                 onChange={(e) => setEvidence(e.target.value)}
                 disabled={submitting}
@@ -131,16 +110,16 @@ export default function RaiseDisputeForm({
                     accept="image/*,.pdf"
                     onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                     disabled={submitting}
-                    className="text-xs text-[#9AA0AC] file:mr-3 file:px-3 file:py-1.5 file:rounded-sm file:border file:border-[#2A2E3A] file:bg-[#171A24] file:text-[#EDE6D6] file:text-xs file:cursor-pointer hover:file:border-[#9A4B3F]"
+                    className="text-xs text-[#9AA0AC] file:mr-3 file:px-3 file:py-1.5 file:rounded-sm file:border file:border-[#2A2E3A] file:bg-[#171A24] file:text-[#EDE6D6] file:text-xs file:cursor-pointer hover:file:border-[#B08D33]"
                 />
             </div>
             {error && <p className="text-xs text-[#C77A6C] mt-2 break-all">{error}</p>}
             <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="mt-3 px-4 py-2 rounded-sm bg-[#9A4B3F] text-[#EDE6D6] text-sm font-medium hover:bg-[#7E3D33] disabled:opacity-40 transition-colors"
+                className="mt-3 px-4 py-2 rounded-sm border border-[#B08D33] text-[#B08D33] text-sm font-medium hover:bg-[#B08D33] hover:text-[#10121A] disabled:opacity-40 transition-colors"
             >
-                {submitting ? "Submitting…" : "Submit dispute"}
+                {submitting ? "Submitting…" : "Submit evidence"}
             </button>
         </div>
     );

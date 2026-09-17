@@ -404,6 +404,15 @@
         {
           "name": "favor_expert",
           "type": "bool"
+        },
+        {
+          "name": "verdict_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         }
       ]
     }
@@ -525,6 +534,21 @@
               "false if it favored the client (funds refunded)"
             ],
             "type": "bool"
+          },
+          {
+            "name": "verdict_hash",
+            "docs": [
+              "SHA-256 fingerprint of the arbitration record: the verdict, its reasoning,",
+              "and the evidence it was based on. Written at resolution time so the ruling",
+              "is tamper-evident — anyone can recompute this from the published evidence",
+              "and verdict and check it against the value stored here. Zeroed until resolved."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           },
           {
             "name": "bump",

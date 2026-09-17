@@ -10,6 +10,11 @@ interface EvidenceRow {
     role: "client" | "expert";
     content: string;
     evidence_hash: string;
+    attachment_url: string | null;
+}
+
+function isImageUrl(url: string) {
+    return /\.(png|jpe?g|gif|webp)$/i.test(url);
 }
 
 export default function DisputeEvidence({
@@ -30,7 +35,7 @@ export default function DisputeEvidence({
 
             const { data, error: fetchError } = await supabase
                 .from("dispute_evidence")
-                .select("id, created_at, submitted_by, role, content, evidence_hash")
+                .select("id, created_at, submitted_by, role, content, evidence_hash, attachment_url")
                 .eq("escrow_address", escrowAddress)
                 .order("created_at", { ascending: false });
 
@@ -46,37 +51,15 @@ export default function DisputeEvidence({
         }
 
         fetchEvidence();
-
         return () => {
             cancelled = true;
         };
     }, [escrowAddress]);
 
-    if (loading) {
-        return (
-            <p className="text-xs text-gray-500 mt-2">Loading evidence...</p>
-        );
-    }
+    if (loading) return <p className="text-xs text-gray-500 mt-2">Loading evidence...</p>;
+    if (error) return <p className="text-xs text-red-400 mt-2">Could not load evidence: {error}</p>;
+    if (rows.length === 0) return <p className="text-xs text-gray-500 mt-2">No evidence submitted yet.</p>;
 
-    if (error) {
-        return (
-            <p className="text-xs text-red-400 mt-2">
-                Could not load evidence: {error}
-            </p>
-        );
-    }
-
-    if (rows.length === 0) {
-        return (
-            <p className="text-xs text-gray-500 mt-2">
-                No evidence submitted yet.
-            </p>
-        );
-    }
-
-    // Rows are already sorted newest-first, so the first occurrence of each
-    // role is that party's latest submission. Any earlier rows for the same
-    // role (e.g. from a retried transaction) are dropped.
     const latestByRole = new Map<string, EvidenceRow>();
     for (const row of rows) {
         if (!latestByRole.has(row.role)) {
@@ -98,9 +81,31 @@ export default function DisputeEvidence({
                             {role}
                         </p>
                         {row ? (
-                            <p className="text-sm text-gray-200 whitespace-pre-wrap">
-                                {row.content}
-                            </p>
+                            <>
+                                <p className="text-sm text-gray-200 whitespace-pre-wrap">
+                                    {row.content}
+                                </p>
+                                {row.attachment_url && (
+                                    isImageUrl(row.attachment_url) ? (
+                                        <a href={row.attachment_url} target="_blank" rel="noreferrer">
+                                            <img
+                                                src={row.attachment_url}
+                                                alt={`${role} attachment`}
+                                                className="mt-2 max-h-40 rounded-md border border-gray-700"
+                                            />
+                                        </a>
+                                    ) : (
+                                        <a
+                                            href={row.attachment_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-xs text-blue-400 underline mt-2 inline-block"
+                                        >
+                                            View attached file
+                                        </a>
+                                    )
+                                )}
+                            </>
                         ) : (
                             <p className="text-xs text-gray-500 italic">
                                 No evidence submitted yet.
@@ -109,6 +114,6 @@ export default function DisputeEvidence({
                     </div>
                 );
             })}
-        </div>
+        </div >
     );
 }
