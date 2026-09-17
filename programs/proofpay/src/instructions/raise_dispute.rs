@@ -21,6 +21,7 @@ pub fn handle_raise_dispute(ctx: Context<RaiseDispute>, evidence_hash: [u8; 32])
     dispute.evidence_hash = evidence_hash;
     dispute.status = DisputeStatus::Open;
     dispute.resolved_in_favor_of_expert = false;
+    dispute.verdict_hash = [0u8; 32];
     dispute.bump = ctx.bumps.dispute;
 
     ctx.accounts.escrow.status = EscrowStatus::Disputed;

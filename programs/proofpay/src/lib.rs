@@ -36,7 +36,15 @@ pub mod proofpay {
         crate::instructions::raise_dispute::handle_raise_dispute(ctx, evidence_hash)
     }
 
-    pub fn resolve_dispute(ctx: Context<ResolveDispute>, favor_expert: bool) -> Result<()> {
-        crate::instructions::resolve_dispute::handle_resolve_dispute(ctx, favor_expert)
+    pub fn resolve_dispute(
+        ctx: Context<ResolveDispute>,
+        favor_expert: bool,
+        verdict_hash: [u8; 32],
+    ) -> Result<()> {
+        crate::instructions::resolve_dispute::handle_resolve_dispute(
+            ctx,
+            favor_expert,
+            verdict_hash,
+        )
     }
 }

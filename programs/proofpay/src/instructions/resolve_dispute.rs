@@ -4,7 +4,11 @@ use crate::constants::VALIDATOR_AUTHORITY;
 use crate::error::ProofPayError;
 use crate::state::{Dispute, DisputeStatus, Escrow, EscrowStatus};
 
-pub fn handle_resolve_dispute(ctx: Context<ResolveDispute>, favor_expert: bool) -> Result<()> {
+pub fn handle_resolve_dispute(
+    ctx: Context<ResolveDispute>,
+    favor_expert: bool,
+    verdict_hash: [u8; 32],
+) -> Result<()> {
     require!(
         ctx.accounts.dispute.status == DisputeStatus::Open,
         ProofPayError::DisputeAlreadyResolved
@@ -45,6 +49,7 @@ pub fn handle_resolve_dispute(ctx: Context<ResolveDispute>, favor_expert: bool) 
 
     ctx.accounts.dispute.status = DisputeStatus::Resolved;
     ctx.accounts.dispute.resolved_in_favor_of_expert = favor_expert;
+    ctx.accounts.dispute.verdict_hash = verdict_hash;
 
     Ok(())
 }

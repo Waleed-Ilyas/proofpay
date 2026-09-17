@@ -241,6 +241,13 @@ describe("proofpay", () => {
                 disputeAccount.raisedBy.toBase58(),
                 client3.publicKey.toBase58()
             );
+
+            // Until the dispute is resolved, no verdict has been recorded, so the
+            // on-chain fingerprint should still be all zeroes.
+            assert.deepEqual(
+                Array.from(disputeAccount.verdictHash),
+                new Array(32).fill(0)
+            );
         });
 
         it("lets the validator resolve the dispute in favor of the expert", async () => {
@@ -248,8 +255,12 @@ describe("proofpay", () => {
                 expert3.publicKey
             );
 
+            // Stands in for the SHA-256 the backend computes over the verdict,
+            // its reasoning, and the evidence it was based on.
+            const fakeVerdictHash = new Array(32).fill(7);
+
             await program.methods
-                .resolveDispute(true)
+                .resolveDispute(true, fakeVerdictHash)
                 .accounts({
                     validator: validator.publicKey,
                     client: client3.publicKey,
@@ -266,6 +277,12 @@ describe("proofpay", () => {
             const disputeAccount = await program.account.dispute.fetch(disputePda);
             assert.deepEqual(disputeAccount.status, { resolved: {} });
             assert.strictEqual(disputeAccount.resolvedInFavorOfExpert, true);
+
+            // The verdict fingerprint must be written on-chain at resolution time.
+            assert.deepEqual(
+                Array.from(disputeAccount.verdictHash),
+                fakeVerdictHash
+            );
 
             const expertBalanceAfter = await provider.connection.getBalance(
                 expert3.publicKey

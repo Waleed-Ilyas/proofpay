@@ -45,6 +45,11 @@ pub struct Dispute {
     /// Set once resolved: true if the ruling favored the expert (funds released),
     /// false if it favored the client (funds refunded)
     pub resolved_in_favor_of_expert: bool,
+    /// SHA-256 fingerprint of the arbitration record: the verdict, its reasoning,
+    /// and the evidence it was based on. Written at resolution time so the ruling
+    /// is tamper-evident — anyone can recompute this from the published evidence
+    /// and verdict and check it against the value stored here. Zeroed until resolved.
+    pub verdict_hash: [u8; 32],
     pub bump: u8,
 }
 
