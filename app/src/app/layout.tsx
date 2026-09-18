@@ -1,40 +1,39 @@
 import type { Metadata } from "next";
-import { Fraunces, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Newsreader, Archivo, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { WalletContextProvider } from "@/context/WalletContextProvider";
 
-const fraunces = Fraunces({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  style: ["normal", "italic"],
-});
-
-const plexSans = IBM_Plex_Sans({
-  variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
-
-const plexMono = IBM_Plex_Mono({
-  variable: "--font-mono",
+const newsreader = Newsreader({
+  variable: "--font-newsreader",
   subsets: ["latin"],
   weight: ["400", "500"],
 });
 
+const archivo = Archivo({
+  variable: "--font-archivo",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+});
+
+const jetbrains = JetBrains_Mono({
+  variable: "--font-jetbrains",
+  subsets: ["latin"],
+  weight: ["400"],
+});
+
 export const metadata: Metadata = {
-  title: "ProofPay — Escrow that settles itself",
+  title: "ProofPay",
   description:
-    "Trustless escrow payments for freelance work on Solana, with AI-assisted dispute resolution.",
+    "Payment held by a Solana program until the work is agreed done. If the two sides disagree, both file evidence and the ruling executes on-chain.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${fraunces.variable} ${plexSans.variable} ${plexMono.variable} h-full antialiased`}
+      className={`${newsreader.variable} ${archivo.variable} ${jetbrains.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col bg-[#10121A] text-[#EDE6D6]">
+      <body className="min-h-full flex flex-col">
         <WalletContextProvider>{children}</WalletContextProvider>
       </body>
     </html>

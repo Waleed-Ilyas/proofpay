@@ -1,190 +1,220 @@
-"use client";
-
 import Link from "next/link";
-import { Reveal } from "@/components/Reveal";
-import { EscrowFlowAnimation } from "@/components/EscrowFlowAnimation";
-import { WorkflowScene } from "@/components/WorkflowScene";
-
-function SealEmblem() {
-  return (
-    <svg viewBox="0 0 200 200" className="w-32 h-32 pp-seal" aria-hidden="true">
-      <circle cx="100" cy="100" r="92" fill="#B08D33" className="pp-glow" opacity="0.35" />
-      <polygon
-        points="100,10 124,20 148,16 162,36 184,44 180,68 194,88 180,108 184,132 162,140 148,160 124,156 100,168 76,156 52,160 38,140 16,132 20,108 6,88 20,68 16,44 38,36 52,16 76,20"
-        fill="#B08D33"
-      />
-      <circle cx="100" cy="88" r="56" fill="#171A24" stroke="#8C6F28" strokeWidth="3" />
-      <path
-        d="M74 90 L94 110 L130 66"
-        fill="none"
-        stroke="#EDE6D6"
-        strokeWidth="9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="pp-check"
-      />
-    </svg>
-  );
-}
-
-const steps = [
-  {
-    n: "1",
-    title: "Client creates the escrow",
-    body: "SOL is deposited into a program-owned account the moment the job starts — not held by a platform, held by code.",
-  },
-  {
-    n: "2",
-    title: "Expert accepts",
-    body: "The job becomes active. Both sides know exactly where the funds are and what has to happen to release them.",
-  },
-  {
-    n: "3",
-    title: "Release, or raise a dispute",
-    body: "Most jobs end with a simple release. If something's wrong, either side submits evidence — text, screenshots, or files.",
-  },
-  {
-    n: "4",
-    title: "AI reviews and settles",
-    body: "A verdict is generated from the original terms and both parties' evidence, then signed and submitted on-chain.",
-  },
-];
+import { ArbitrationRecord } from "@/components/ArbitrationRecord";
+import { CustodyLedger } from "@/components/CustodyLedger";
+import { DriftingCast } from "@/components/DriftingCast";
+import { EscrowLifecycle } from "@/components/EscrowLifecycle";
+import { HashCrystal } from "@/components/HashCrystal";
 
 export default function Landing() {
   return (
     <main className="flex flex-col flex-1">
-      <header className="flex items-center justify-between px-6 md:px-12 py-6 max-w-6xl mx-auto w-full">
-        <span className="font-display text-2xl">ProofPay</span>
-        <Link
-          href="/app"
-          className="px-5 py-2 rounded-sm border border-[#B08D33] text-[#B08D33] text-sm font-medium hover:bg-[#B08D33] hover:text-[#10121A] transition-colors"
-        >
-          Open App
-        </Link>
+      <header className="border-b border-edge relative z-10">
+        <div className="max-w-6xl mx-auto w-full px-6 lg:px-10 py-5 flex items-center justify-between gap-6">
+          <span className="font-display text-2xl leading-none">ProofPay</span>
+          <Link
+            href="/app"
+            className="text-sm font-semibold bg-brass text-night px-4 py-2 whitespace-nowrap transition-opacity duration-150 hover:opacity-90"
+          >
+            Open the app
+          </Link>
+        </div>
       </header>
 
-      <section className="px-6 md:px-12 max-w-6xl mx-auto w-full grid md:grid-cols-2 gap-12 items-center py-12 md:py-20">
-        <div>
-          <h1
-            className="font-display text-4xl md:text-5xl leading-tight pp-rise"
-            style={{ animationDelay: "0.1s" }}
-          >
-            Escrow that only lets go when the work is done.
-          </h1>
-          <p
-            className="mt-5 text-[#9AA0AC] text-lg max-w-md pp-rise"
-            style={{ animationDelay: "0.25s" }}
-          >
-            Funds lock on Solana the moment a job starts. If the two sides
-            disagree about the outcome, an AI arbitrator reads the evidence and
-            settles it on-chain — no platform in the middle, no waiting weeks.
-          </p>
-          <div
-            className="mt-8 flex flex-wrap gap-3 pp-rise"
-            style={{ animationDelay: "0.4s" }}
-          >
-            <Link
-              href="/app"
-              className="px-6 py-3 rounded-sm bg-[#B08D33] text-[#10121A] font-medium hover:bg-[#8C6F28] transition-colors"
-            >
-              Launch App
-            </Link>
-            <a
-              href="#how"
-              className="px-6 py-3 rounded-sm border border-[#2A2E3A] text-[#EDE6D6] font-medium hover:border-[#B08D33] transition-colors"
-            >
-              See how it works
-            </a>
+      {/* Hook: the drifting cast lives only in this section */}
+      <section className="relative overflow-hidden bg-night isolate hero-atmosphere">
+        <DriftingCast />
+        <div className="relative max-w-6xl mx-auto w-full px-6 lg:px-10 pt-14 pb-20 lg:pt-16 lg:pb-24 grid lg:grid-cols-[1.05fr_minmax(0,1fr)] gap-14 lg:gap-20 items-center">
+          <div>
+            <h1 className="font-display text-4xl lg:text-5xl leading-[1.08]">
+              Neither of you holds the money. Both of you get a hearing.
+            </h1>
+            <p className="mt-7 text-lg leading-relaxed text-mute max-w-md">
+              Payment sits inside a Solana program from the moment work starts.
+              If the two sides disagree about the result, each files evidence
+              and the ruling is the transaction that moves the funds.
+            </p>
+            <div className="mt-10 flex flex-wrap items-center gap-5">
+              <Link
+                href="/app"
+                className="bg-brass text-night px-6 py-3.5 font-semibold whitespace-nowrap transition-opacity duration-150 hover:opacity-90"
+              >
+                Open the app
+              </Link>
+              <a
+                href="#custody"
+                className="font-medium whitespace-nowrap underline decoration-edge underline-offset-8 transition-colors duration-150 hover:decoration-brass"
+              >
+                See where the money sits
+              </a>
+            </div>
+          </div>
+
+          <div className="w-full flex justify-center">
+            <EscrowLifecycle />
           </div>
         </div>
-
-        <div
-          className="flex flex-col items-center gap-8 pp-rise"
-          style={{ animationDelay: "0.3s" }}
-        >
-          <SealEmblem />
-          <EscrowFlowAnimation />
-        </div>
       </section>
 
-      <section
-        id="how"
-        className="px-6 md:px-12 max-w-6xl mx-auto w-full py-16 border-t border-[#2A2E3A]"
-      >
-        <Reveal>
-          <h2 className="font-display text-2xl mb-10">How it works</h2>
-        </Reveal>
-
-        <Reveal>
-          <div className="mb-14">
-            <WorkflowScene />
-          </div>
-        </Reveal>
-
-        <div className="grid md:grid-cols-4 gap-8">
-          {steps.map((step, i) => (
-            <Reveal key={step.n} delay={i * 120}>
-              <div className="relative">
-                <div className="w-10 h-10 rounded-full border-2 border-[#B08D33] flex items-center justify-center font-display text-[#B08D33]">
-                  {step.n}
-                </div>
-                <h3 className="mt-4 font-medium text-lg">{step.title}</h3>
-                <p className="mt-2 text-sm text-[#9AA0AC]">{step.body}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      <section className="px-6 md:px-12 max-w-6xl mx-auto w-full py-16 border-t border-[#2A2E3A]">
-        <div className="grid md:grid-cols-3 gap-8">
-          <Reveal>
-            <h3 className="font-display text-xl mb-2">Evidence, not opinions</h3>
-            <p className="text-sm text-[#9AA0AC]">
-              Disputes are decided on what was actually submitted — not on
-              whoever argues hardest or replies fastest.
-            </p>
-          </Reveal>
-          <Reveal delay={120}>
-            <h3 className="font-display text-xl mb-2">An arbitrator that looks</h3>
-            <p className="text-sm text-[#9AA0AC]">
-              Screenshots and files attached as evidence are reviewed directly
-              by the AI, not just described to it in text.
-            </p>
-          </Reveal>
-          <Reveal delay={240}>
-            <h3 className="font-display text-xl mb-2">Settled on-chain</h3>
-            <p className="text-sm text-[#9AA0AC]">
-              The verdict isn&apos;t a recommendation. It&apos;s a signed Solana
-              transaction that moves the funds.
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      <section className="px-6 md:px-12 max-w-6xl mx-auto w-full py-20 border-t border-[#2A2E3A]">
-        <Reveal>
-          <div className="text-center">
-            <h2 className="font-display text-3xl mb-4">
-              Try it on Devnet right now.
+      {/* Solution: the record itself */}
+      <section className="border-t border-edge bg-surface">
+        <div className="max-w-6xl mx-auto w-full px-6 lg:px-10 py-24 lg:py-32 grid lg:grid-cols-[1fr_minmax(0,1.05fr)] gap-14 lg:gap-20 items-center">
+          <div>
+            <h2 className="font-display text-3xl lg:text-4xl leading-tight">
+              A disagreement becomes a record, not an argument
             </h2>
-            <p className="text-[#9AA0AC] mb-8 max-w-md mx-auto">
-              Connect Phantom or Solflare, create an escrow, and take it all the
-              way through a dispute in a couple of minutes.
+            <p className="mt-5 text-mute leading-relaxed">
+              Each side files once: what was agreed, what happened, and any
+              screenshots that show it. The text is hashed the moment it is
+              submitted, so neither party can quietly revise their story after
+              reading the other one.
+            </p>
+            <p className="mt-4 text-mute leading-relaxed">
+              Attached images are read by the arbitrator directly. A claim about
+              a delivered dashboard is checked against a picture of the
+              dashboard, not against a description of it.
+            </p>
+          </div>
+          <ArbitrationRecord />
+        </div>
+      </section>
+
+      {/* Problem */}
+      <section className="border-t border-edge">
+        <div className="max-w-6xl mx-auto w-full px-6 lg:px-10 py-24 lg:py-32 grid lg:grid-cols-[1fr_minmax(0,1.15fr)] gap-14 lg:gap-20">
+          <h2 className="font-display text-3xl lg:text-4xl leading-tight">
+            Someone always has to go first, and that someone carries the risk.
+          </h2>
+
+          <div className="grid sm:grid-cols-2 gap-px bg-edge border border-edge">
+            <div className="bg-night p-6">
+              <p className="text-sm text-flare font-medium">
+                If the client pays first
+              </p>
+              <p className="mt-3 text-[1.05rem] leading-relaxed">
+                The money is gone before anything arrives. Getting it back means
+                asking the person who already has it.
+              </p>
+            </div>
+            <div className="bg-night p-6">
+              <p className="text-sm text-flare font-medium">
+                If the expert works first
+              </p>
+              <p className="mt-3 text-[1.05rem] leading-relaxed">
+                The work is delivered before anything is paid. Getting paid
+                means asking the person who already has the work.
+              </p>
+            </div>
+            <div className="bg-night p-6 sm:col-span-2">
+              <p className="text-sm text-mute font-medium">
+                If a platform holds it
+              </p>
+              <p className="mt-3 text-[1.05rem] leading-relaxed">
+                The risk moves to a third party who sets the rules, decides the
+                outcome behind closed doors, takes a percentage, and can freeze
+                the account while it thinks about it.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section id="custody" className="border-t border-edge bg-surface">
+        <div className="max-w-6xl mx-auto w-full px-6 lg:px-10 py-24 lg:py-32">
+          <div className="grid lg:grid-cols-[1fr_minmax(0,1.6fr)] gap-12 lg:gap-20 items-start">
+            <div className="lg:sticky lg:top-12">
+              <h2 className="font-display text-3xl lg:text-4xl leading-tight">
+                Where the SOL is, at every state
+              </h2>
+              <p className="mt-5 text-mute leading-relaxed">
+                Escrow normally means a company is holding your money and
+                promising to be fair about it. Here a program holds it, and the
+                third column is the reason that matters.
+              </p>
+            </div>
+            <CustodyLedger />
+          </div>
+        </div>
+      </section>
+
+      {/* Proof */}
+      <section className="relative overflow-hidden border-t border-edge proof-atmosphere">
+        <div className="relative max-w-6xl mx-auto w-full px-6 lg:px-10 py-24 lg:py-32 grid lg:grid-cols-[1fr_minmax(0,1.1fr)] gap-14 lg:gap-20 items-center">
+          <div>
+            <HashCrystal />
+            <h2 className="font-display text-3xl lg:text-4xl leading-tight mt-8">
+              Check the ruling yourself
+            </h2>
+            <p className="mt-5 text-mute leading-relaxed">
+              A database can be edited afterwards. So when a dispute settles,
+              the whole record is hashed and that fingerprint is written into
+              the dispute account on Solana, in the same transaction that moves
+              the money.
+            </p>
+            <p className="mt-4 text-mute leading-relaxed">
+              Recompute it from the published record. If one character of the
+              reasoning changed later, the two values stop matching.
+            </p>
+          </div>
+
+          <div className="border border-edge">
+            <div className="px-6 py-5 border-b border-edge">
+              <p className="text-sm text-mute">1. The published record</p>
+              <p className="mt-2 text-[1.05rem] leading-relaxed">
+                terms, client filing, expert filing, decision, reasoning
+              </p>
+            </div>
+            <div className="px-6 py-5 border-b border-edge">
+              <p className="text-sm text-mute">2. Hashed with SHA-256</p>
+              <p className="addr text-xs mt-2 text-signal scroll-x whitespace-nowrap">
+                8f3ac91b7e2d4a6058fc1e9b3d7a24e0d21c
+              </p>
+            </div>
+            <div className="px-6 py-5 bg-verdict text-night">
+              <p className="text-sm font-medium">
+                3. Compared with verdict_hash on-chain
+              </p>
+              <p className="font-display text-xl mt-2">The values match</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Close */}
+      <section className="border-t border-edge bg-surface">
+        <div className="max-w-6xl mx-auto w-full px-6 lg:px-10 py-24 lg:py-32">
+          <div className="max-w-2xl">
+            <h2 className="font-display text-4xl lg:text-5xl leading-[1.08]">
+              Run a whole dispute in about four minutes
+            </h2>
+            <p className="mt-6 text-lg text-mute leading-relaxed">
+              Point Phantom or Solflare at devnet, create an escrow, argue with
+              yourself from two wallets, and watch the ruling settle it.
             </p>
             <Link
               href="/app"
-              className="inline-block px-8 py-4 rounded-sm bg-[#B08D33] text-[#10121A] font-medium hover:bg-[#8C6F28] transition-colors"
+              className="inline-block mt-10 bg-brass text-night px-7 py-4 font-semibold whitespace-nowrap transition-opacity duration-150 hover:opacity-90"
             >
-              Launch App
+              Open the app
             </Link>
           </div>
-        </Reveal>
+        </div>
       </section>
 
-      <footer className="px-6 md:px-12 max-w-6xl mx-auto w-full py-8 border-t border-[#2A2E3A] text-sm text-[#9AA0AC]">
-        <p>ProofPay — built on Solana. Running on Devnet.</p>
+      <footer className="border-t border-edge">
+        <div className="max-w-6xl mx-auto w-full px-6 lg:px-10 py-8 flex flex-wrap gap-x-8 gap-y-2 text-sm text-mute">
+          <span>ProofPay</span>
+          <span>Solana devnet</span>
+          <a
+            href="https://github.com/Waleed-Ilyas/proofpay"
+            target="_blank"
+            rel="noreferrer"
+            className="underline decoration-edge underline-offset-4 whitespace-nowrap transition-colors duration-150 hover:decoration-brass"
+          >
+            Source on GitHub
+          </a>
+        </div>
       </footer>
-    </main >
+    </main>
   );
 }
