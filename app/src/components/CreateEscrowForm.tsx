@@ -6,6 +6,7 @@ import { PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import BN from "bn.js";
 import { useAnchorProgram } from "@/hooks/useAnchorProgram";
 import { supabase } from "@/lib/supabase";
+import { btn, explorerAddress, inputClass } from "@/components/app/ui";
 
 export function CreateEscrowForm({ onCreated }: { onCreated?: () => void }) {
     const { publicKey } = useWallet();
@@ -15,11 +16,13 @@ export function CreateEscrowForm({ onCreated }: { onCreated?: () => void }) {
     const [amount, setAmount] = useState("");
     const [description, setDescription] = useState("");
     const [status, setStatus] = useState<string | null>(null);
+    const [createdAddress, setCreatedAddress] = useState<string | null>(null);
     const [isError, setIsError] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const handleCreateEscrow = async () => {
         setIsError(false);
+        setCreatedAddress(null);
 
         if (!program || !publicKey) {
             setStatus("Connect your wallet first.");
@@ -43,7 +46,8 @@ export function CreateEscrowForm({ onCreated }: { onCreated?: () => void }) {
             return;
         }
 
-        const lamports = new BN(solAmount * LAMPORTS_PER_SOL);
+        // Math.round: 1.1 * 1e9 isn't a whole number in floating point, and BN rejects fractions.
+        const lamports = new BN(Math.round(solAmount * LAMPORTS_PER_SOL));
 
         const [escrowPda] = PublicKey.findProgramAddressSync(
             [Buffer.from("escrow"), publicKey.toBuffer(), expertPubkey.toBuffer()],
@@ -77,81 +81,108 @@ export function CreateEscrowForm({ onCreated }: { onCreated?: () => void }) {
                 }
             }
 
-            setStatus(`Escrow created at ${escrowPda.toBase58()}`);
+            setStatus("Escrow created. The SOL is now locked in the program.");
+            setCreatedAddress(escrowPda.toBase58());
             setExpertAddress("");
             setAmount("");
             setDescription("");
             onCreated?.();
         } catch (err: any) {
             console.error(err);
-            setStatus(err.message ?? "The transaction didn't go through. Try again.");
+            const message: string = err?.message ?? "";
+            if (/already in use/i.test(message)) {
+                // The escrow address is derived from (client, expert), so a pair gets one escrow.
+                setStatus(
+                    "You already have an escrow with this expert wallet. Each client and expert pair can have one, so use a different expert wallet."
+                );
+            } else {
+                setStatus(message || "The transaction didn't go through. Try again.");
+            }
             setIsError(true);
         } finally {
             setLoading(false);
         }
     };
 
-    const fieldClass =
-        "px-3 py-2.5 rounded-sm bg-[#10121A] border border-[#2A2E3A] text-sm text-[#EDE6D6] placeholder:text-[#5A606C] focus:outline-none focus:border-[#B08D33] transition-colors";
-
     return (
-        <div className="flex flex-col gap-5 w-full max-w-md p-6 rounded-sm border border-[#2A2E3A] bg-[#171A24]">
-            <h2 className="font-display text-xl">Create an escrow</h2>
+        <div className="rounded-2xl border border-edge bg-surface p-6 flex flex-col gap-5">
+            <div>
+                <h2 className="font-display text-2xl">Create an escrow</h2>
+                <p className="text-sm text-mute mt-1">
+                    The SOL is locked in the program the moment you confirm.
+                </p>
+            </div>
 
-            <div className="flex flex-col gap-1.5">
-                <label className="text-sm text-[#9AA0AC]">Expert&apos;s wallet address</label>
+            <label className="flex flex-col gap-1.5">
+                <span className="text-sm text-mute">Expert&apos;s wallet address</span>
                 <input
                     type="text"
                     value={expertAddress}
                     onChange={(e) => setExpertAddress(e.target.value)}
                     placeholder="Solana wallet address"
-                    className={`${fieldClass} font-mono-address`}
+                    spellCheck={false}
+                    className={`${inputClass} font-mono-address text-[13px]`}
                 />
-            </div>
+            </label>
 
-            <div className="flex flex-col gap-1.5">
-                <label className="text-sm text-[#9AA0AC]">Amount in SOL</label>
+            <label className="flex flex-col gap-1.5">
+                <span className="text-sm text-mute">Amount in SOL</span>
                 <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="1.0"
-                    className={`${fieldClass} font-mono-address`}
+                    className={`${inputClass} font-mono-address`}
                 />
-            </div>
+            </label>
 
-            <div className="flex flex-col gap-1.5">
-                <label className="text-sm text-[#9AA0AC]">
+            <label className="flex flex-col gap-1.5">
+                <span className="text-sm text-mute">
                     What&apos;s the work?{" "}
-                    <span className="text-[#5A606C]">
+                    <span className="text-mute/70">
                         Optional, but the arbitrator uses it if there&apos;s a dispute.
                     </span>
-                </label>
+                </span>
                 <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Build a landing page with a signup form and three sections"
                     rows={3}
-                    className={`${fieldClass} resize-none`}
+                    className={`${inputClass} resize-none`}
                 />
-            </div>
+            </label>
 
             <button
                 onClick={handleCreateEscrow}
                 disabled={loading || !publicKey}
-                className="mt-1 px-4 py-3 rounded-sm bg-[#B08D33] text-[#10121A] font-medium hover:bg-[#8C6F28] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className={`${btn.primary} py-3 text-base`}
             >
                 {loading ? "Creating escrow…" : "Create and deposit"}
             </button>
 
             {status && (
-                <p
-                    className={`text-sm break-all font-mono-address ${isError ? "text-[#C77A6C]" : "text-[#7FA88C]"
-                        }`}
+                <div
+                    role="status"
+                    className={`rounded-lg border p-3 text-sm ${
+                        isError
+                            ? "border-flare/50 bg-flare/10 text-flare"
+                            : "border-verdict/40 bg-verdict/10 text-verdict"
+                    }`}
                 >
-                    {status}
-                </p>
+                    <p className="break-words">{status}</p>
+                    {createdAddress && (
+                        <a
+                            href={explorerAddress(createdAddress)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="addr mt-1.5 block text-xs underline underline-offset-4 break-all"
+                        >
+                            {createdAddress}
+                        </a>
+                    )}
+                </div>
             )}
         </div>
     );

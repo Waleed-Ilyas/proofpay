@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { formatWhen, shorten } from "@/components/app/ui";
 
 interface EvidenceRow {
     id: number;
@@ -19,8 +20,11 @@ function isImageUrl(url: string) {
 
 export default function DisputeEvidence({
     escrowAddress,
+    refreshKey = 0,
 }: {
     escrowAddress: string;
+    /** Bump this to refetch after a new filing. */
+    refreshKey?: number;
 }) {
     const [rows, setRows] = useState<EvidenceRow[]>([]);
     const [loading, setLoading] = useState(true);
@@ -54,66 +58,75 @@ export default function DisputeEvidence({
         return () => {
             cancelled = true;
         };
-    }, [escrowAddress]);
+    }, [escrowAddress, refreshKey]);
 
-    if (loading) return <p className="text-xs text-gray-500 mt-2">Loading evidence...</p>;
-    if (error) return <p className="text-xs text-red-400 mt-2">Could not load evidence: {error}</p>;
-    if (rows.length === 0) return <p className="text-xs text-gray-500 mt-2">No evidence submitted yet.</p>;
+    if (loading) return <p className="p-5 sm:p-6 border-t border-edge text-sm text-mute">Loading evidence…</p>;
+    if (error)
+        return (
+            <p className="p-5 sm:p-6 border-t border-edge text-sm text-flare">
+                Could not load evidence: {error}
+            </p>
+        );
 
     const latestByRole = new Map<string, EvidenceRow>();
+    const countByRole = new Map<string, number>();
     for (const row of rows) {
-        if (!latestByRole.has(row.role)) {
-            latestByRole.set(row.role, row);
-        }
+        countByRole.set(row.role, (countByRole.get(row.role) ?? 0) + 1);
+        if (!latestByRole.has(row.role)) latestByRole.set(row.role, row);
     }
 
     return (
-        <div className="mt-3 flex flex-col gap-2">
-            <p className="text-sm font-medium text-gray-300">Submitted Evidence</p>
-            {["client", "expert"].map((role) => {
-                const row = latestByRole.get(role);
-                return (
-                    <div
-                        key={role}
-                        className="p-2 rounded-md border border-gray-700 bg-gray-800/60"
-                    >
-                        <p className="text-xs font-semibold text-gray-400 capitalize mb-1">
-                            {role}
-                        </p>
-                        {row ? (
-                            <>
-                                <p className="text-sm text-gray-200 whitespace-pre-wrap">
-                                    {row.content}
-                                </p>
-                                {row.attachment_url && (
-                                    isImageUrl(row.attachment_url) ? (
-                                        <a href={row.attachment_url} target="_blank" rel="noreferrer">
-                                            <img
-                                                src={row.attachment_url}
-                                                alt={`${role} attachment`}
-                                                className="mt-2 max-h-40 rounded-md border border-gray-700"
-                                            />
-                                        </a>
-                                    ) : (
-                                        <a
-                                            href={row.attachment_url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="text-xs text-blue-400 underline mt-2 inline-block"
-                                        >
-                                            View attached file
-                                        </a>
-                                    )
+        <div className="p-5 sm:p-6 border-t border-edge">
+            <p className="font-display text-xl">Filed evidence</p>
+            <div className="mt-4 grid sm:grid-cols-2 gap-3">
+                {(["client", "expert"] as const).map((role) => {
+                    const row = latestByRole.get(role);
+                    const count = countByRole.get(role) ?? 0;
+                    return (
+                        <div key={role} className="paper rounded-[6px] p-4 text-sm">
+                            <div className="flex items-baseline justify-between gap-3">
+                                <p className="text-xs text-ink/60">{role === "client" ? "Client" : "Expert"} filed</p>
+                                {row && (
+                                    <p className="text-[11px] text-ink/50">{formatWhen(row.created_at)}</p>
                                 )}
-                            </>
-                        ) : (
-                            <p className="text-xs text-gray-500 italic">
-                                No evidence submitted yet.
-                            </p>
-                        )}
-                    </div>
-                );
-            })}
-        </div >
+                            </div>
+                            {row ? (
+                                <>
+                                    <p className="mt-2 leading-relaxed whitespace-pre-wrap break-words">
+                                        {row.content}
+                                    </p>
+                                    {row.attachment_url &&
+                                        (isImageUrl(row.attachment_url) ? (
+                                            <a href={row.attachment_url} target="_blank" rel="noreferrer">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={row.attachment_url}
+                                                    alt={`${role} attachment`}
+                                                    className="mt-3 max-h-40 rounded border border-ink/20"
+                                                />
+                                            </a>
+                                        ) : (
+                                            <a
+                                                href={row.attachment_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="mt-3 inline-block text-xs underline underline-offset-4"
+                                            >
+                                                View attached file
+                                            </a>
+                                        ))}
+                                    <p className="addr text-[10px] text-ink/50 mt-3 break-all">
+                                        sha256 {shorten(row.evidence_hash, 8)}
+                                        {count > 1 ? ` · latest of ${count} filings` : ""}
+                                    </p>
+                                </>
+                            ) : (
+                                <p className="mt-2 text-ink/50 italic">Nothing filed yet.</p>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
     );
 }

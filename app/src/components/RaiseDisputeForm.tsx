@@ -6,6 +6,7 @@ import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { useAnchorProgram } from "@/hooks/useAnchorProgram";
 import { supabase } from "@/lib/supabase";
 import { sha256ToBytes, sha256ToHex } from "@/lib/hash";
+import { AttachmentPicker, inputClass } from "@/components/app/ui";
 
 interface RaiseDisputeFormProps {
     escrowAddress: string;
@@ -112,10 +113,14 @@ export default function RaiseDisputeForm({
     }
 
     return (
-        <div className="mt-3 p-4 border border-[#9A4B3F] rounded-sm bg-[#9A4B3F]/10">
-            <p className="text-sm font-medium text-[#C77A6C] mb-2">Raise a dispute</p>
+        <div className="p-5 sm:p-6 border-t border-flare/30 bg-flare/[0.06]">
+            <p className="font-display text-xl text-flare">Raise a dispute</p>
+            <p className="text-sm text-mute mt-1">
+                Your account is hashed and its fingerprint is written on-chain with the dispute.
+                The escrow is frozen until the arbitrator rules.
+            </p>
             <textarea
-                className="w-full border border-[#2A2E3A] rounded-sm p-2.5 text-sm bg-[#10121A] text-[#EDE6D6] placeholder:text-[#5A606C] focus:outline-none focus:border-[#9A4B3F] transition-colors"
+                className={`${inputClass} mt-4 focus:border-flare`}
                 rows={4}
                 placeholder="What went wrong, and why are you disputing?"
                 value={evidence}
@@ -123,22 +128,13 @@ export default function RaiseDisputeForm({
                 disabled={submitting}
             />
             <div className="mt-3">
-                <label className="text-xs text-[#9AA0AC] block mb-1.5">
-                    Attach a screenshot or file (optional)
-                </label>
-                <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                    disabled={submitting}
-                    className="text-xs text-[#9AA0AC] file:mr-3 file:px-3 file:py-1.5 file:rounded-sm file:border file:border-[#2A2E3A] file:bg-[#171A24] file:text-[#EDE6D6] file:text-xs file:cursor-pointer hover:file:border-[#9A4B3F]"
-                />
+                <AttachmentPicker file={file} onChange={setFile} disabled={submitting} tone="flare" />
             </div>
-            {error && <p className="text-xs text-[#C77A6C] mt-2 break-all">{error}</p>}
+            {error && <p className="text-sm text-flare mt-3 break-words">{error}</p>}
             <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="mt-3 px-4 py-2 rounded-sm bg-[#9A4B3F] text-[#EDE6D6] text-sm font-medium hover:bg-[#7E3D33] disabled:opacity-40 transition-colors"
+                className="mt-4 inline-flex items-center justify-center rounded-lg bg-flare text-night px-4 py-2.5 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
             >
                 {submitting ? "Submitting…" : "Submit dispute"}
             </button>

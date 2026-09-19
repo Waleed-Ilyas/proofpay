@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { sha256ToHex } from "@/lib/hash";
+import { AttachmentPicker, btn, inputClass } from "@/components/app/ui";
 
 interface SubmitEvidenceFormProps {
     escrowAddress: string;
@@ -89,12 +90,16 @@ export default function SubmitEvidenceForm({
     }
 
     return (
-        <div className="mt-3 p-4 border border-[#2A2E3A] rounded-sm bg-[#10121A]">
-            <p className="text-sm font-medium text-[#B08D33] mb-2">
+        <div className="p-5 sm:p-6 border-t border-edge">
+            <p className="font-display text-xl text-brass">
                 {submittedOnce ? "Update your evidence" : "Submit your evidence"}
             </p>
+            <p className="text-sm text-mute mt-1">
+                Each filing is timestamped and hashed. The arbitrator reads the latest one from each
+                side.
+            </p>
             <textarea
-                className="w-full border border-[#2A2E3A] rounded-sm p-2.5 text-sm bg-[#171A24] text-[#EDE6D6] placeholder:text-[#5A606C] focus:outline-none focus:border-[#B08D33] transition-colors"
+                className={`${inputClass} mt-4`}
                 rows={3}
                 placeholder="What happened, from your side?"
                 value={evidence}
@@ -102,23 +107,10 @@ export default function SubmitEvidenceForm({
                 disabled={submitting}
             />
             <div className="mt-3">
-                <label className="text-xs text-[#9AA0AC] block mb-1.5">
-                    Attach a screenshot or file (optional)
-                </label>
-                <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                    disabled={submitting}
-                    className="text-xs text-[#9AA0AC] file:mr-3 file:px-3 file:py-1.5 file:rounded-sm file:border file:border-[#2A2E3A] file:bg-[#171A24] file:text-[#EDE6D6] file:text-xs file:cursor-pointer hover:file:border-[#B08D33]"
-                />
+                <AttachmentPicker file={file} onChange={setFile} disabled={submitting} />
             </div>
-            {error && <p className="text-xs text-[#C77A6C] mt-2 break-all">{error}</p>}
-            <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="mt-3 px-4 py-2 rounded-sm border border-[#B08D33] text-[#B08D33] text-sm font-medium hover:bg-[#B08D33] hover:text-[#10121A] disabled:opacity-40 transition-colors"
-            >
+            {error && <p className="text-sm text-flare mt-3 break-words">{error}</p>}
+            <button onClick={handleSubmit} disabled={submitting} className={`${btn.quiet} mt-4`}>
                 {submitting ? "Submitting…" : "Submit evidence"}
             </button>
         </div>

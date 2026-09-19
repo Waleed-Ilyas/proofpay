@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { btn } from "@/components/app/ui";
 
 // Mirrors what the API route actually does, so the wait reads as progress
-// rather than a frozen screen. Timings are approximate — the real work is
+// rather than a frozen screen. Timings are approximate; the real work is
 // gated on the network, so the last stage holds until the response lands.
 const stages = [
     "Collecting evidence from both sides",
@@ -12,12 +13,14 @@ const stages = [
     "Signing the ruling on-chain",
 ];
 
+export type ResolveResult = { txSignature?: string; verdictHash?: string };
+
 export default function ResolveWithAiButton({
     escrowAddress,
     onResolved,
 }: {
     escrowAddress: string;
-    onResolved: () => void;
+    onResolved: (result?: ResolveResult) => void;
 }) {
     const [loading, setLoading] = useState(false);
     const [stage, setStage] = useState(0);
@@ -53,7 +56,7 @@ export default function ResolveWithAiButton({
                 throw new Error(data.error ?? "Resolution failed");
             }
 
-            onResolved();
+            onResolved({ txSignature: data.txSignature, verdictHash: data.verdictHash });
         } catch (err: any) {
             console.error(err);
             setError(err.message ?? "The arbitrator couldn't complete the ruling.");
@@ -64,32 +67,27 @@ export default function ResolveWithAiButton({
 
     if (loading) {
         return (
-            <div className="mt-2 w-full p-4 rounded-sm border border-[#B08D33] bg-[#B08D33]/5">
+            <div className="w-full rounded-xl border border-brass/50 bg-brass/[0.06] p-4" aria-live="polite">
                 <div className="flex items-center gap-2 mb-3">
-                    <span className="font-display text-sm text-[#B08D33]">
-                        Arbitrator at work
-                    </span>
+                    <span className="font-display text-lg text-brass">Arbitrator at work</span>
                     <span className="flex gap-1">
-                        <span className="w-1 h-1 rounded-full bg-[#B08D33] pp-dot-1" />
-                        <span className="w-1 h-1 rounded-full bg-[#B08D33] pp-dot-2" />
-                        <span className="w-1 h-1 rounded-full bg-[#B08D33] pp-dot-3" />
+                        <span className="w-1 h-1 rounded-full bg-brass pp-dot-1" />
+                        <span className="w-1 h-1 rounded-full bg-brass pp-dot-2" />
+                        <span className="w-1 h-1 rounded-full bg-brass pp-dot-3" />
                     </span>
                 </div>
 
-                <div className="relative h-0.5 bg-[#2A2E3A] rounded-full overflow-hidden mb-3">
-                    <div className="absolute inset-y-0 w-1/4 bg-[#B08D33] pp-scan" />
+                <div className="relative h-0.5 bg-edge rounded-full overflow-hidden mb-3">
+                    <div className="absolute inset-y-0 w-1/4 bg-brass pp-scan" />
                 </div>
 
                 <div className="space-y-1.5">
                     {stages.map((s, i) => (
                         <p
                             key={s}
-                            className={`text-xs transition-colors duration-500 ${i < stage
-                                ? "text-[#7FA88C]"
-                                : i === stage
-                                    ? "text-[#EDE6D6]"
-                                    : "text-[#5A606C]"
-                                }`}
+                            className={`text-sm transition-colors duration-500 ${
+                                i < stage ? "text-verdict" : i === stage ? "text-bone" : "text-mute/60"
+                            }`}
                         >
                             {i < stage ? "✓ " : i === stage ? "› " : "  "}
                             {s}
@@ -101,14 +99,11 @@ export default function ResolveWithAiButton({
     }
 
     return (
-        <div className="mt-2">
-            <button
-                onClick={handleClick}
-                className="px-4 py-2 rounded-sm bg-[#B08D33] text-[#10121A] text-sm font-medium hover:bg-[#8C6F28] transition-colors"
-            >
+        <div>
+            <button onClick={handleClick} className={btn.primary}>
                 Resolve with AI
             </button>
-            {error && <p className="text-xs text-[#C77A6C] mt-1 break-all">{error}</p>}
+            {error && <p className="text-sm text-flare mt-2 break-words">{error}</p>}
         </div>
     );
 }

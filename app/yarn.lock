@@ -121,7 +121,7 @@
   dependencies:
     "@babel/types" "^7.29.8"
 
-"@babel/runtime@^7.24.0", "@babel/runtime@^7.25.0", "@babel/runtime@^7.29.7", "@babel/runtime@^7.x", "@babel/runtime@7.x":
+"@babel/runtime@^7.17.8", "@babel/runtime@^7.24.0", "@babel/runtime@^7.25.0", "@babel/runtime@^7.29.7", "@babel/runtime@^7.x", "@babel/runtime@7.x":
   version "7.29.7"
   resolved "https://registry.npmjs.org/@babel/runtime/-/runtime-7.29.7.tgz"
   integrity sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==
@@ -949,6 +949,22 @@
   dependencies:
     invariant "^2.2.4"
     nullthrows "^1.1.1"
+
+"@react-three/fiber@^9.7.0":
+  version "9.7.0"
+  resolved "https://registry.npmjs.org/@react-three/fiber/-/fiber-9.7.0.tgz"
+  integrity sha512-EWm9FwcaOZQu/ExFW5rggoCMM1NJet5YbxVxKaOE+KSncrjU0Wx7017qSyGFvupviK89nMYGCWU3BIK4dI1clw==
+  dependencies:
+    "@babel/runtime" "^7.17.8"
+    "@types/webxr" "*"
+    base64-js "^1.5.1"
+    buffer "^6.0.3"
+    its-fine "^2.0.0"
+    react-use-measure "^2.1.7"
+    scheduler "^0.27.0"
+    suspend-react "^0.1.3"
+    use-sync-external-store "^1.4.0"
+    zustand "^5.0.3"
 
 "@reown/appkit-common@1.7.2":
   version "1.7.2"
@@ -3062,7 +3078,12 @@
   resolved "https://registry.npmjs.org/@types/react-dom/-/react-dom-19.3.0.tgz"
   integrity sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==
 
-"@types/react@^19", "@types/react@^19.1.1", "@types/react@^19.2.0", "@types/react@^19.3.0", "@types/react@>=16.8":
+"@types/react-reconciler@^0.28.9":
+  version "0.28.9"
+  resolved "https://registry.npmjs.org/@types/react-reconciler/-/react-reconciler-0.28.9.tgz"
+  integrity sha512-HHM3nxyUZ3zAylX8ZEyrDNd2XZOnQ0D5XfunJF5FLQnZbHHYq4UWvW1QfelQNXv1ICNkwYhfxjwfnqivYB6bFg==
+
+"@types/react@*", "@types/react@^19", "@types/react@^19.1.1", "@types/react@^19.2.0", "@types/react@^19.3.0", "@types/react@>=16.8", "@types/react@>=18.0.0":
   version "19.3.0"
   resolved "https://registry.npmjs.org/@types/react/-/react-19.3.0.tgz"
   integrity sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==
@@ -3111,7 +3132,7 @@
   resolved "https://registry.npmjs.org/@types/web/-/web-0.0.197.tgz"
   integrity sha512-V4sOroWDADFx9dLodWpKm298NOJ1VJ6zoDVgaP+WBb/utWxqQ6gnMzd9lvVDAr/F3ibiKaxH9i45eS0gQPSTaQ==
 
-"@types/webxr@>=0.5.17":
+"@types/webxr@*", "@types/webxr@>=0.5.17":
   version "0.5.24"
   resolved "https://registry.npmjs.org/@types/webxr/-/webxr-0.5.24.tgz"
   integrity sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg==
@@ -6219,6 +6240,13 @@ iterator.prototype@^1.1.5:
     has-symbols "^1.1.0"
     set-function-name "^2.0.2"
 
+its-fine@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.npmjs.org/its-fine/-/its-fine-2.0.0.tgz"
+  integrity sha512-KLViCmWx94zOvpLwSlsx6yOCeMhZYaxrJV87Po5k/FoZzcPSahvK5qJ7fYhS61sZi5ikmh2S3Hz55A2l3U69ng==
+  dependencies:
+    "@types/react-reconciler" "^0.28.9"
+
 jayson@^4.3.0:
   version "4.3.0"
   resolved "https://registry.npmjs.org/jayson/-/jayson-4.3.0.tgz"
@@ -7561,7 +7589,7 @@ react-devtools-core@^6.1.5:
     shell-quote "^1.6.1"
     ws "^7"
 
-react-dom@*, "react-dom@^0.14.0 || ^15.0.0 || ^16 || ^17 || ^18 || ^19", "react-dom@^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", react-dom@~16, react-dom@19.2.8:
+react-dom@*, "react-dom@^0.14.0 || ^15.0.0 || ^16 || ^17 || ^18 || ^19", "react-dom@^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", react-dom@>=16.13, "react-dom@>=19 <19.3", react-dom@~16, react-dom@19.2.8:
   version "19.2.8"
   resolved "https://registry.npmjs.org/react-dom/-/react-dom-19.2.8.tgz"
   integrity sha512-rVprimfGBG3DR+Tq0IQG2DT5PxKth1WIGDmj5yPmlzr4YBe7uyE+Du4oVqTDXZSHGGGXRtTJEGSSePyQCMBglQ==
@@ -7601,7 +7629,7 @@ react-modal@^3.12.1:
     react-lifecycles-compat "^3.0.0"
     warning "^4.0.3"
 
-react-native@*, "react-native@^0.0.0-0 || >=0.60 <1.0", react-native@>0.74, react-native@0.87.1:
+react-native@*, "react-native@^0.0.0-0 || >=0.60 <1.0", react-native@>=0.78, react-native@>0.74, react-native@0.87.1:
   version "0.87.1"
   resolved "https://registry.npmjs.org/react-native/-/react-native-0.87.1.tgz"
   integrity sha512-DJKG6ANoD7BtrE4z9DewiSD7/RxCX73lK5Pu49aUr85P3333Dm2roTiP0rRjQNDZdVizHSOmstWfwF/o9EjCRA==
@@ -7651,7 +7679,12 @@ react-refresh@^0.14.0:
   resolved "https://registry.npmjs.org/react-refresh/-/react-refresh-0.14.2.tgz"
   integrity sha512-jCvmsr+1IUSMUyzOkRcvnVbX3ZYC6g9TDrDbFuFmRDq7PD4yaGbLKNQL6k2jnArV8hjYxh7hVhAZB6s9HDGpZA==
 
-react@*, "react@^0.14.0 || ^15.0.0 || ^16 || ^17 || ^18 || ^19", "react@^15.5.3 || ^16.0.0 || ^17.0.0", "react@^16.8.0 || ^17.0.0 || ^18.0.0", "react@^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", react@^19.2.3, react@^19.2.8, "react@>= 16.8.0 || 17.x.x || ^18.0.0-0 || ^19.0.0-0", react@>=16.8, react@~16, react@19.2.8:
+react-use-measure@^2.1.7:
+  version "2.1.7"
+  resolved "https://registry.npmjs.org/react-use-measure/-/react-use-measure-2.1.7.tgz"
+  integrity sha512-KrvcAo13I/60HpwGO5jpW7E9DfusKyLPLvuHlUyP5zqnmAPhNc6qTRjUQrdTADl0lpPpDVU2/Gg51UlOGHXbdg==
+
+react@*, "react@^0.14.0 || ^15.0.0 || ^16 || ^17 || ^18 || ^19", "react@^15.5.3 || ^16.0.0 || ^17.0.0", "react@^16.8.0 || ^17.0.0 || ^18.0.0", "react@^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react@^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", react@^19.0.0, react@^19.2.3, react@^19.2.8, "react@>= 16.8.0 || 17.x.x || ^18.0.0-0 || ^19.0.0-0", react@>=16.13, react@>=16.8, react@>=17.0, react@>=18.0.0, "react@>=19 <19.3", react@~16, react@19.2.8:
   version "19.2.8"
   resolved "https://registry.npmjs.org/react/-/react-19.2.8.tgz"
   integrity sha512-PWaYA1L/q9u2u7xYQi+Y3L3Yfnie7XyLeaJICV1MGD6LprsBxcAqGjYyr0eY3p+QdsA+x/Irkt4Qif8D63+Sbw==
@@ -8439,6 +8472,11 @@ supports-preserve-symlinks-flag@^1.0.0:
   resolved "https://registry.npmjs.org/supports-preserve-symlinks-flag/-/supports-preserve-symlinks-flag-1.0.0.tgz"
   integrity sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==
 
+suspend-react@^0.1.3:
+  version "0.1.3"
+  resolved "https://registry.npmjs.org/suspend-react/-/suspend-react-0.1.3.tgz"
+  integrity sha512-aqldKgX9aZqpoDp3e8/BZ8Dm7x1pJl+qI3ZKxDN0i/IQTWUwBx/ManmlVJ3wowqbno6c2bmiIfs+Um6LbsjJyQ==
+
 tailwindcss@^4, tailwindcss@4.3.3:
   version "4.3.3"
   resolved "https://registry.npmjs.org/tailwindcss/-/tailwindcss-4.3.3.tgz"
@@ -8471,7 +8509,7 @@ thread-stream@^0.15.1:
   dependencies:
     real-require "^0.1.0"
 
-three@^0.186.0:
+three@^0.186.0, three@>=0.156:
   version "0.186.0"
   resolved "https://registry.npmjs.org/three/-/three-0.186.0.tgz"
   integrity sha512-cr/fIM2ddMSVbYVgkfD4jLJv7Fh/8ZTjvo+7gQeSVGUZHxpx9FDwoL5iC7hUz/LiRA8wMbqfnb90xKfm1/HHkQ==
@@ -8793,6 +8831,11 @@ usb@^2.15.0:
     "@types/w3c-web-usb" "^1.0.6"
     node-addon-api "^8.0.0"
     node-gyp-build "^4.5.0"
+
+use-sync-external-store@^1.4.0, use-sync-external-store@>=1.2.0:
+  version "1.7.0"
+  resolved "https://registry.npmjs.org/use-sync-external-store/-/use-sync-external-store-1.7.0.tgz"
+  integrity sha512-6L+EeigHMQhdaIPNIFUKwfWJSwWFQ8gJbJ2DLOs5sDIegTwR9fRxvnM3uciHKjIZhFz+KAv2emhWMRvDmMcY8A==
 
 use-sync-external-store@1.2.0:
   version "1.2.0"
@@ -9160,3 +9203,8 @@ zod@3.22.4:
   version "3.22.4"
   resolved "https://registry.npmjs.org/zod/-/zod-3.22.4.tgz"
   integrity sha512-iC+8Io04lddc+mVqQ9AZ7OQ2MrUKGN+oIQyq1vemgt46jwCwLfhq7/pwnBnNXXXZb8VTVLKwp9EDkx+ryxIWmg==
+
+zustand@^5.0.3:
+  version "5.0.15"
+  resolved "https://registry.npmjs.org/zustand/-/zustand-5.0.15.tgz"
+  integrity sha512-MpSEjRiBkA9crSYeOUH32rJC7SVqAbm0Fqcqge/bUi2PPoLcBWKOsG+C8mevmpr8TwXHBVkChbbJiyvkE+i/3A==

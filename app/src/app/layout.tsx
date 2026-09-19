@@ -1,41 +1,55 @@
-import type { Metadata } from "next";
-import { Newsreader, Archivo, JetBrains_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Instrument_Serif, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { WalletContextProvider } from "@/context/WalletContextProvider";
 
-const newsreader = Newsreader({
-  variable: "--font-newsreader",
+// Display: Instrument Serif, a condensed, high-contrast serif with a real italic.
+// Body/UI: Instrument Sans, same family lineage but clearly a different voice.
+// Mono: JetBrains Mono, used only for hashes and wallet addresses.
+const display = Instrument_Serif({
+  variable: "--font-instrument-serif",
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: "400",
+  style: ["normal", "italic"],
 });
 
-const archivo = Archivo({
-  variable: "--font-archivo",
+const sans = Instrument_Sans({
+  variable: "--font-instrument-sans",
   subsets: ["latin"],
-  weight: ["400", "500"],
 });
 
-const jetbrains = JetBrains_Mono({
+const mono = JetBrains_Mono({
   variable: "--font-jetbrains",
   subsets: ["latin"],
-  weight: ["400"],
+  weight: "400",
 });
 
+const description =
+  "Payment held by a Solana program until the work is agreed done. If the two sides disagree, both file evidence and the ruling executes on-chain.";
+
 export const metadata: Metadata = {
-  title: "ProofPay",
-  description:
-    "Payment held by a Solana program until the work is agreed done. If the two sides disagree, both file evidence and the ruling executes on-chain.",
+  title: "ProofPay: escrow where nobody holds the money",
+  description,
+  openGraph: {
+    title: "ProofPay: escrow where nobody holds the money",
+    description,
+    type: "website",
+  },
 };
 
+export const viewport: Viewport = {
+  themeColor: "#06151a",
+  colorScheme: "dark",
+};
+
+// The wallet provider now lives in src/app/app/layout.tsx, so the landing page
+// doesn't download the wallet adapters it never uses.
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${newsreader.variable} ${archivo.variable} ${jetbrains.variable} h-full`}
+      className={`${display.variable} ${sans.variable} ${mono.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col">
-        <WalletContextProvider>{children}</WalletContextProvider>
-      </body>
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }
