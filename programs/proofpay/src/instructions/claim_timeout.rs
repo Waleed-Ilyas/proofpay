@@ -1,27 +1,38 @@
 use anchor_lang::prelude::*;
 
-use crate::constants::VALIDATOR_AUTHORITY;
+use crate::constants::DISPUTE_TIMEOUT_SECONDS;
 use crate::error::ProofPayError;
 use crate::state::{Dispute, DisputeStatus, Escrow, EscrowStatus};
 
-pub fn handle_resolve_dispute(
-    ctx: Context<ResolveDispute>,
-    favor_expert: bool,
-    verdict_hash: [u8; 32],
-) -> Result<()> {
+/// Permissionless: anyone can call this (in practice the raiser's own wallet,
+/// or the frontend, triggers it), but it only pays out if every on-chain
+/// condition holds. It cannot be used to bypass a real response.
+pub fn handle_claim_timeout(ctx: Context<ClaimTimeout>) -> Result<()> {
     require!(
         ctx.accounts.dispute.status == DisputeStatus::Open,
         ProofPayError::DisputeAlreadyResolved
     );
-
     require!(
         ctx.accounts.escrow.status == EscrowStatus::Disputed,
         ProofPayError::InvalidEscrowStatus
     );
+    require!(
+        ctx.accounts.dispute.counter_hash == [0u8; 32],
+        ProofPayError::CounterEvidenceAlreadySubmittedForTimeout
+    );
 
+    let now = Clock::get()?.unix_timestamp;
+    require!(
+        now >= ctx.accounts.dispute.raised_at + DISPUTE_TIMEOUT_SECONDS,
+        ProofPayError::TimeoutNotReached
+    );
+
+    let raised_by = ctx.accounts.dispute.raised_by;
     let amount = ctx.accounts.escrow.amount;
 
-    if favor_expert {
+    // The raiser wins by default: whichever side didn't respond loses the
+    // funds to the side that did show up and ask for a ruling.
+    if raised_by == ctx.accounts.escrow.expert {
         **ctx
             .accounts
             .escrow
@@ -33,6 +44,7 @@ pub fn handle_resolve_dispute(
             .to_account_info()
             .try_borrow_mut_lamports()? += amount;
         ctx.accounts.escrow.status = EscrowStatus::Completed;
+        ctx.accounts.dispute.resolved_in_favor_of_expert = true;
     } else {
         **ctx
             .accounts
@@ -45,54 +57,42 @@ pub fn handle_resolve_dispute(
             .to_account_info()
             .try_borrow_mut_lamports()? += amount;
         ctx.accounts.escrow.status = EscrowStatus::Refunded;
+        ctx.accounts.dispute.resolved_in_favor_of_expert = false;
     }
 
     ctx.accounts.dispute.status = DisputeStatus::Resolved;
-    ctx.accounts.dispute.resolved_in_favor_of_expert = favor_expert;
-    ctx.accounts.dispute.verdict_hash = verdict_hash;
+    // verdict_hash stays [0u8; 32]: no ruling was made, so there is nothing to fingerprint.
 
     Ok(())
 }
 
 #[derive(Accounts)]
-pub struct ResolveDispute<'info> {
-    /// Only this specific key can resolve disputes — our backend's AI
-    /// verification service holds this key and signs after reaching a verdict.
-    #[account(
-        constraint = validator.key() == VALIDATOR_AUTHORITY @ ProofPayError::UnauthorizedValidator
-    )]
-    pub validator: Signer<'info>,
-
-    /// CHECK: Verified against escrow.client before funds move, and before
-    /// the escrow's rent is returned to it on close.
+pub struct ClaimTimeout<'info> {
+    /// CHECK: verified against escrow.client before funds move.
     #[account(mut, address = escrow.client @ ProofPayError::UnauthorizedClient)]
     pub client: UncheckedAccount<'info>,
 
-    /// CHECK: Verified against escrow.expert before funds move.
+    /// CHECK: verified against escrow.expert before funds move.
     #[account(mut, address = escrow.expert @ ProofPayError::UnauthorizedExpert)]
     pub expert: UncheckedAccount<'info>,
 
     #[account(
         mut,
-        seeds = [b"escrow", client.key().as_ref(), expert.key().as_ref(), escrow.nonce.to_le_bytes().as_ref()],
+        seeds = [b"escrow", escrow.client.as_ref(), escrow.expert.as_ref(), escrow.nonce.to_le_bytes().as_ref()],
         bump = escrow.bump,
-        // Rent returns to the client, and closing frees this client/expert
-        // pair to create a new escrow afterward. Closing the ESCROW is safe:
-        // verification only ever reads the DISPUTE account below.
         close = client
     )]
     pub escrow: Account<'info, Escrow>,
 
-    // IMPORTANT: the dispute account is deliberately NOT closed here.
-    // verdict_hash is written in this same instruction, and "Verify this
-    // ruling" depends on being able to read it back from Solana at any point
-    // in the future. Closing it here would delete the fingerprint in the same
-    // transaction that creates it. Only claim_timeout (where no fingerprint
-    // is ever written) closes a dispute account.
+    /// CHECK: verified against dispute.raised_by before closing to it.
+    #[account(mut, address = dispute.raised_by)]
+    pub raiser: UncheckedAccount<'info>,
+
     #[account(
         mut,
         seeds = [b"dispute", escrow.key().as_ref()],
-        bump = dispute.bump
+        bump = dispute.bump,
+        close = raiser
     )]
     pub dispute: Account<'info, Dispute>,
 }

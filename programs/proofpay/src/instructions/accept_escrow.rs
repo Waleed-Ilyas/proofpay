@@ -32,7 +32,7 @@ pub struct AcceptEscrow<'info> {
 
     #[account(
         mut,
-        seeds = [b"escrow", escrow.client.as_ref(), escrow.expert.as_ref()],
+        seeds = [b"escrow", escrow.client.as_ref(), escrow.expert.as_ref(), escrow.nonce.to_le_bytes().as_ref()],
         bump = escrow.bump
     )]
     pub escrow: Account<'info, Escrow>,

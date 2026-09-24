@@ -13,7 +13,7 @@ const stages = [
     "Signing the ruling on-chain",
 ];
 
-export type ResolveResult = { txSignature?: string; verdictHash?: string };
+export type ResolveResult = { txSignature?: string; verdictHash?: string; favorExpert?: boolean };
 
 export default function ResolveWithAiButton({
     escrowAddress,
@@ -56,7 +56,11 @@ export default function ResolveWithAiButton({
                 throw new Error(data.error ?? "Resolution failed");
             }
 
-            onResolved({ txSignature: data.txSignature, verdictHash: data.verdictHash });
+            onResolved({
+                txSignature: data.txSignature,
+                verdictHash: data.verdictHash,
+                favorExpert: data.favor_expert,
+            });
         } catch (err: any) {
             console.error(err);
             setError(err.message ?? "The arbitrator couldn't complete the ruling.");

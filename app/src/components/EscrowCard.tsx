@@ -5,11 +5,14 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { useAnchorProgram } from "@/hooks/useAnchorProgram";
 import { EscrowData } from "@/hooks/useEscrows";
+import { useDispute } from "@/hooks/useDispute";
+import { supabase } from "@/lib/supabase";
 import RaiseDisputeForm from "./RaiseDisputeForm";
 import DisputeEvidence from "./DisputeEvidence";
 import SubmitEvidenceForm from "./SubmitEvidenceForm";
 import ResolveWithAiButton from "./ResolveWithAiButton";
 import DisputeResolution from "./DisputeResolution";
+import DisputeTimer from "./DisputeTimer";
 import {
     CopyButton,
     STATUS,
@@ -41,12 +44,42 @@ function AddressRow({ label, address, you }: { label: string; address: string; y
     );
 }
 
+/**
+ * The escrow account CLOSES the moment it settles (release, cancel, or a
+ * ruling), refunding its rent and freeing this client/expert pair to
+ * transact again. That also means it disappears from any future on-chain
+ * scan for good — this is the only record of the outcome that survives.
+ * upsert (not insert) so retries or a resolve-then-refresh can't duplicate
+ * or fail on this row.
+ */
+async function recordSettledEscrow(
+    escrow: EscrowData,
+    status: "completed" | "refunded",
+    txSignature?: string
+) {
+    const { error } = await supabase.from("escrow_history").upsert(
+        {
+            escrow_address: escrow.publicKey,
+            client: escrow.client,
+            expert: escrow.expert,
+            amount: escrow.amount,
+            status,
+            tx_signature: txSignature ?? null,
+        },
+        { onConflict: "escrow_address" }
+    );
+    if (error) console.error("Failed to record settled escrow:", error);
+}
+
 export function EscrowCard({
     escrow,
     onActionComplete,
+    onStatusChange,
 }: {
     escrow: EscrowData;
     onActionComplete: () => void;
+    /** Optional: apply a known-good status immediately, without waiting on a refetch. */
+    onStatusChange?: (publicKey: string, status: string) => void;
 }) {
     const { publicKey } = useWallet();
     const { program } = useAnchorProgram();
@@ -56,6 +89,10 @@ export function EscrowCard({
     const [lastTx, setLastTx] = useState<string | null>(null);
     const [rulingTx, setRulingTx] = useState<string | null>(null);
     const [evidenceVersion, setEvidenceVersion] = useState(0);
+    const { dispute, refetch: refetchDispute } = useDispute(
+        escrow.publicKey,
+        escrow.status === "disputed"
+    );
 
     // Pulse the badge when the escrow moves to a new state, so the lifecycle
     // is visible as it happens rather than just silently re-rendering.
@@ -83,11 +120,13 @@ export function EscrowCard({
 
         try {
             let signature: string | undefined;
+            let nextStatus: string | null = null;
             if (action === "accept") {
                 signature = await program.methods
                     .acceptEscrow()
                     .accounts({ expert: publicKey, escrow: escrowPubkey })
                     .rpc();
+                nextStatus = "active";
             } else if (action === "release") {
                 signature = await program.methods
                     .releaseEscrow()
@@ -98,6 +137,7 @@ export function EscrowCard({
                         systemProgram: SystemProgram.programId,
                     })
                     .rpc();
+                nextStatus = "completed";
             } else if (action === "cancel") {
                 signature = await program.methods
                     .cancelEscrow()
@@ -107,9 +147,19 @@ export function EscrowCard({
                         systemProgram: SystemProgram.programId,
                     })
                     .rpc();
+                nextStatus = "refunded";
             }
 
             if (signature) setLastTx(signature);
+            // Reflect the outcome immediately — we already know the transaction
+            // succeeded, so there's no reason to wait on a public RPC's
+            // getProgramAccounts index to catch up before the UI updates.
+            if (nextStatus) {
+                onStatusChange?.(escrow.publicKey, nextStatus);
+                if (nextStatus === "completed" || nextStatus === "refunded") {
+                    await recordSettledEscrow(escrow, nextStatus, signature);
+                }
+            }
             onActionComplete();
         } catch (err: any) {
             console.error(err);
@@ -120,7 +170,10 @@ export function EscrowCard({
     };
 
     return (
-        <article className="pp-card-in rounded-2xl border border-edge bg-surface overflow-hidden">
+        <article
+            id={`escrow-${escrow.publicKey}`}
+            className="pp-card-in rounded-2xl border border-edge bg-surface overflow-hidden scroll-mt-24"
+        >
             <div className="p-5 sm:p-6">
                 <div className="flex items-center justify-between gap-3">
                     <span className="text-sm text-mute">
@@ -190,6 +243,11 @@ export function EscrowCard({
                                     setLastTx(r.txSignature);
                                     setRulingTx(r.txSignature);
                                 }
+                                if (typeof r?.favorExpert === "boolean") {
+                                    const settledStatus = r.favorExpert ? "completed" : "refunded";
+                                    onStatusChange?.(escrow.publicKey, settledStatus);
+                                    recordSettledEscrow(escrow, settledStatus, r.txSignature);
+                                }
                                 onActionComplete();
                             }}
                         />
@@ -218,6 +276,33 @@ export function EscrowCard({
                         onDisputeRaised={() => {
                             setShowDisputeForm(false);
                             setEvidenceVersion((v) => v + 1);
+                            // We already know this succeeded on-chain — show
+                            // "Disputed" immediately rather than waiting on
+                            // the slower background rescan to catch up.
+                            onStatusChange?.(escrow.publicKey, "disputed");
+                            onActionComplete();
+                        }}
+                    />
+                </div>
+            )}
+
+            {escrow.status === "disputed" && dispute && (
+                <div className="px-5 sm:px-6">
+                    <DisputeTimer
+                        escrowAddress={escrow.publicKey}
+                        clientAddress={escrow.client}
+                        expertAddress={escrow.expert}
+                        raisedBy={dispute.raisedBy}
+                        raisedAt={dispute.raisedAt}
+                        counterSubmitted={dispute.counterSubmitted}
+                        onTimeoutClaimed={(signature) => {
+                            // Matches the payout rule in claim_timeout.rs: the
+                            // raiser wins by default when the other side never
+                            // responds in time.
+                            const settledStatus =
+                                dispute.raisedBy === escrow.expert ? "completed" : "refunded";
+                            onStatusChange?.(escrow.publicKey, settledStatus);
+                            recordSettledEscrow(escrow, settledStatus, signature);
                             onActionComplete();
                         }}
                     />
@@ -230,10 +315,12 @@ export function EscrowCard({
                         escrowAddress={escrow.publicKey}
                         submittedBy={publicKey.toBase58()}
                         role={isClient ? "client" : "expert"}
+                        isRaiser={dispute ? dispute.raisedBy === publicKey.toBase58() : false}
                         onSubmitted={() => {
                             setEvidenceVersion((v) => v + 1);
                             onActionComplete();
                         }}
+                        onCounterEvidenceRecorded={refetchDispute}
                     />
                 </div>
             )}

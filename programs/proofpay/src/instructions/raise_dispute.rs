@@ -19,6 +19,9 @@ pub fn handle_raise_dispute(ctx: Context<RaiseDispute>, evidence_hash: [u8; 32])
     dispute.escrow = ctx.accounts.escrow.key();
     dispute.raised_by = raiser;
     dispute.evidence_hash = evidence_hash;
+    // Starts the 12-hour response window. claim_timeout checks against this.
+    dispute.raised_at = Clock::get()?.unix_timestamp;
+    dispute.counter_hash = [0u8; 32];
     dispute.status = DisputeStatus::Open;
     dispute.resolved_in_favor_of_expert = false;
     dispute.verdict_hash = [0u8; 32];
@@ -36,7 +39,7 @@ pub struct RaiseDispute<'info> {
 
     #[account(
         mut,
-        seeds = [b"escrow", escrow.client.as_ref(), escrow.expert.as_ref()],
+        seeds = [b"escrow", escrow.client.as_ref(), escrow.expert.as_ref(), escrow.nonce.to_le_bytes().as_ref()],
         bump = escrow.bump
     )]
     pub escrow: Account<'info, Escrow>,

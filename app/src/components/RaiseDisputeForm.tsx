@@ -104,6 +104,15 @@ export default function RaiseDisputeForm({
             setEvidence("");
             setFile(null);
             onDisputeRaised();
+
+            // Fire-and-forget: a failed or unconfigured email should never
+            // block or appear to fail the dispute itself, which already
+            // succeeded on-chain by this point.
+            fetch("/api/notify-dispute", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ escrowAddress, raisedBy: publicKey.toBase58() }),
+            }).catch((notifyErr) => console.error("notify-dispute request failed:", notifyErr));
         } catch (err: any) {
             console.error(err);
             setError(err.message ?? "The dispute didn't go through. Try again.");

@@ -49,6 +49,11 @@
                 "kind": "account",
                 "path": "escrow.expert",
                 "account": "Escrow"
+              },
+              {
+                "kind": "account",
+                "path": "escrow.nonce",
+                "account": "Escrow"
               }
             ]
           }
@@ -99,6 +104,11 @@
                 "kind": "account",
                 "path": "escrow.expert",
                 "account": "Escrow"
+              },
+              {
+                "kind": "account",
+                "path": "escrow.nonce",
+                "account": "Escrow"
               }
             ]
           }
@@ -106,6 +116,97 @@
         {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_timeout",
+      "docs": [
+        "Callable by anyone once the 12-hour response window has passed with no",
+        "counter-evidence submitted. Pays the raiser; the non-responding side",
+        "gets nothing."
+      ],
+      "discriminator": [
+        130,
+        234,
+        45,
+        53,
+        120,
+        90,
+        86,
+        178
+      ],
+      "accounts": [
+        {
+          "name": "client",
+          "writable": true
+        },
+        {
+          "name": "expert",
+          "writable": true
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.client",
+                "account": "Escrow"
+              },
+              {
+                "kind": "account",
+                "path": "escrow.expert",
+                "account": "Escrow"
+              },
+              {
+                "kind": "account",
+                "path": "escrow.nonce",
+                "account": "Escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "raiser",
+          "writable": true
+        },
+        {
+          "name": "dispute",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  105,
+                  115,
+                  112,
+                  117,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow"
+              }
+            ]
+          }
         }
       ],
       "args": []
@@ -157,6 +258,10 @@
               {
                 "kind": "account",
                 "path": "expert"
+              },
+              {
+                "kind": "arg",
+                "path": "nonce"
               }
             ]
           }
@@ -169,6 +274,10 @@
       "args": [
         {
           "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "nonce",
           "type": "u64"
         }
       ]
@@ -215,6 +324,11 @@
               {
                 "kind": "account",
                 "path": "escrow.expert",
+                "account": "Escrow"
+              },
+              {
+                "kind": "account",
+                "path": "escrow.nonce",
                 "account": "Escrow"
               }
             ]
@@ -308,6 +422,11 @@
                 "kind": "account",
                 "path": "escrow.expert",
                 "account": "Escrow"
+              },
+              {
+                "kind": "account",
+                "path": "escrow.nonce",
+                "account": "Escrow"
               }
             ]
           }
@@ -342,6 +461,9 @@
         },
         {
           "name": "client",
+          "docs": [
+            "the escrow's rent is returned to it on close."
+          ],
           "writable": true
         },
         {
@@ -371,6 +493,11 @@
               {
                 "kind": "account",
                 "path": "expert"
+              },
+              {
+                "kind": "account",
+                "path": "escrow.nonce",
+                "account": "Escrow"
               }
             ]
           }
@@ -407,6 +534,97 @@
         },
         {
           "name": "verdict_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "submit_counter_evidence",
+      "docs": [
+        "Called by whichever party did NOT raise the dispute, to record their",
+        "evidence hash on-chain. This is what makes claim_timeout trustworthy."
+      ],
+      "discriminator": [
+        221,
+        251,
+        230,
+        212,
+        168,
+        54,
+        162,
+        120
+      ],
+      "accounts": [
+        {
+          "name": "responder",
+          "signer": true
+        },
+        {
+          "name": "escrow",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.client",
+                "account": "Escrow"
+              },
+              {
+                "kind": "account",
+                "path": "escrow.expert",
+                "account": "Escrow"
+              },
+              {
+                "kind": "account",
+                "path": "escrow.nonce",
+                "account": "Escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "dispute",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  105,
+                  115,
+                  112,
+                  117,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "evidence_hash",
           "type": {
             "array": [
               "u8",
@@ -480,6 +698,26 @@
       "code": 6006,
       "name": "UnauthorizedValidator",
       "msg": "Only the authorized validator can resolve disputes"
+    },
+    {
+      "code": 6007,
+      "name": "UnauthorizedCounterparty",
+      "msg": "Only the party who did not raise the dispute can submit counter-evidence"
+    },
+    {
+      "code": 6008,
+      "name": "CounterEvidenceAlreadySubmitted",
+      "msg": "Counter-evidence has already been submitted for this dispute"
+    },
+    {
+      "code": 6009,
+      "name": "TimeoutNotReached",
+      "msg": "The 12-hour response window has not passed yet"
+    },
+    {
+      "code": 6010,
+      "name": "CounterEvidenceAlreadySubmittedForTimeout",
+      "msg": "Counter-evidence was submitted, so this dispute can no longer be timed out"
     }
   ],
   "types": [
@@ -517,6 +755,30 @@
             }
           },
           {
+            "name": "raised_at",
+            "docs": [
+              "Unix timestamp (seconds) the dispute was raised. Start of the 12-hour",
+              "response window: the counterparty must submit counter_hash before",
+              "raised_at + TIMEOUT_SECONDS, or the raiser can claim the funds via",
+              "claim_timeout."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "counter_hash",
+            "docs": [
+              "SHA-256 hash of the counterparty's evidence, submitted on-chain via",
+              "submit_counter_evidence. Zeroed until they respond. claim_timeout checks",
+              "this is still zero before paying out on a timeout."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
             "name": "status",
             "docs": [
               "Current status of the dispute itself"
@@ -541,7 +803,8 @@
               "SHA-256 fingerprint of the arbitration record: the verdict, its reasoning,",
               "and the evidence it was based on. Written at resolution time so the ruling",
               "is tamper-evident — anyone can recompute this from the published evidence",
-              "and verdict and check it against the value stored here. Zeroed until resolved."
+              "and verdict and check it against the value stored here. Zeroed until resolved,",
+              "and also zeroed for a timeout resolution, since no ruling was made."
             ],
             "type": {
               "array": [
@@ -609,6 +872,19 @@
             }
           },
           {
+            "name": "nonce",
+            "docs": [
+              "Chosen by the client at creation time (their wallet's local clock, in",
+              "milliseconds) and folded into this account's PDA seeds alongside",
+              "[client, expert]. Without this, every escrow between the same two",
+              "wallets would derive to the exact same address forever, so a pair",
+              "could never do more than one deal together across their lifetime,",
+              "even after settling. With it, each deal between a pair gets its own",
+              "permanent, independent address and history."
+            ],
+            "type": "u64"
+          },
+          {
             "name": "bump",
             "docs": [
               "Bump seed for this PDA, stored so we don't have to re-derive it every time"
@@ -644,12 +920,21 @@
   ],
   "constants": [
     {
+      "name": "DISPUTE_TIMEOUT_SECONDS",
+      "docs": [
+        "How long the counterparty has to submit evidence after a dispute is raised,",
+        "before the raiser can claim the funds via claim_timeout. 12 hours."
+      ],
+      "type": "i64",
+      "value": "43200"
+    },
+    {
       "name": "VALIDATOR_AUTHORITY",
       "docs": [
         "The public key authorized to resolve disputes. In this MVP, this key",
-        "is held by our off-chain backend, which calls Claude to analyze dispute",
-        "evidence, then signs the resolution transaction with this key. A future",
-        "version would replace this with a decentralized validator/staking system."
+        "is held by our off-chain backend, which calls an AI model to analyze",
+        "dispute evidence, then signs the resolution transaction with this key.",
+        "A future version would replace this with a decentralized validator/staking system."
       ],
       "type": "pubkey",
       "value": "EgEs66rzfECcwdvbhj1xt996Lj5ieCsRmg6uv5EgEVzp"

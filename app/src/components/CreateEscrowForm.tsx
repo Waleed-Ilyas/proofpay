@@ -49,8 +49,22 @@ export function CreateEscrowForm({ onCreated }: { onCreated?: () => void }) {
         // Math.round: 1.1 * 1e9 isn't a whole number in floating point, and BN rejects fractions.
         const lamports = new BN(Math.round(solAmount * LAMPORTS_PER_SOL));
 
+        // A fresh nonce for every escrow, so the same two wallets can create
+        // any number of independent escrows over time instead of being
+        // limited to exactly one together for all time. The current time in
+        // milliseconds is more than enough to make two escrows between the
+        // same pair collide by chance; a genuine collision (astronomically
+        // unlikely from a single click) would just fail this specific
+        // transaction, safely, with nothing lost.
+        const nonce = new BN(Date.now());
+
         const [escrowPda] = PublicKey.findProgramAddressSync(
-            [Buffer.from("escrow"), publicKey.toBuffer(), expertPubkey.toBuffer()],
+            [
+                Buffer.from("escrow"),
+                publicKey.toBuffer(),
+                expertPubkey.toBuffer(),
+                nonce.toArrayLike(Buffer, "le", 8),
+            ],
             program.programId
         );
 
@@ -59,7 +73,7 @@ export function CreateEscrowForm({ onCreated }: { onCreated?: () => void }) {
 
         try {
             await program.methods
-                .createEscrow(lamports)
+                .createEscrow(lamports, nonce)
                 .accounts({
                     client: publicKey,
                     expert: expertPubkey,
@@ -69,15 +83,31 @@ export function CreateEscrowForm({ onCreated }: { onCreated?: () => void }) {
                 .rpc();
 
             if (description.trim()) {
+                // upsert, not insert: this escrow's address can be a REUSED
+                // one. The program's escrow PDA is derived only from
+                // [client, expert], so once a pair's earlier escrow settles
+                // and its account closes, their next escrow together gets
+                // the exact same address. A plain insert would collide with
+                // the old metadata row still sitting under that address and
+                // fail — upsert replaces it, which is correct: the old
+                // description belonged to a deal that's already finished.
                 const { error: metadataError } = await supabase
                     .from("escrow_metadata")
-                    .insert({
-                        escrow_address: escrowPda.toBase58(),
-                        description: description.trim(),
-                    });
+                    .upsert(
+                        {
+                            escrow_address: escrowPda.toBase58(),
+                            description: description.trim(),
+                        },
+                        { onConflict: "escrow_address" }
+                    );
 
                 if (metadataError) {
-                    console.error("Failed to save description:", metadataError);
+                    console.error(
+                        "Failed to save description:",
+                        metadataError.message,
+                        metadataError.details,
+                        metadataError.hint
+                    );
                 }
             }
 

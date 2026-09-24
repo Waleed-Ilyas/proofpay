@@ -49,7 +49,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${display.variable} ${sans.variable} ${mono.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      {/* suppressHydrationWarning: browser extensions like Grammarly inject
+          attributes (data-new-gr-c-s-check-loaded, data-gr-ext-installed)
+          into <body> after the page loads. That's a real mismatch between
+          server and client markup, but it's caused by the extension, not by
+          this app, so React's warning about it is suppressed here. This only
+          silences the warning for this one element; it does not hide other
+          hydration mismatches. */}
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

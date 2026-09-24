@@ -22,4 +22,16 @@ pub enum ProofPayError {
 
     #[msg("Only the authorized validator can resolve disputes")]
     UnauthorizedValidator,
+
+    #[msg("Only the party who did not raise the dispute can submit counter-evidence")]
+    UnauthorizedCounterparty,
+
+    #[msg("Counter-evidence has already been submitted for this dispute")]
+    CounterEvidenceAlreadySubmitted,
+
+    #[msg("The 12-hour response window has not passed yet")]
+    TimeoutNotReached,
+
+    #[msg("Counter-evidence was submitted, so this dispute can no longer be timed out")]
+    CounterEvidenceAlreadySubmittedForTimeout,
 }

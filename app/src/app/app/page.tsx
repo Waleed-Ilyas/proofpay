@@ -8,7 +8,10 @@ import { CreateEscrowForm } from "@/components/CreateEscrowForm";
 import { EscrowCard } from "@/components/EscrowCard";
 import { VaultScene } from "@/components/landing/VaultScene";
 import { CopyButton, btn, formatSol, shorten } from "@/components/app/ui";
+import { NotificationBell } from "@/components/app/NotificationBell";
+import { EmailOptIn } from "@/components/app/EmailOptIn";
 import { useEscrows } from "@/hooks/useEscrows";
+import { useNotifications } from "@/hooks/useNotifications";
 
 const WalletMultiButton = dynamic(
     () =>
@@ -56,8 +59,25 @@ function Stat({ label, value, unit }: { label: string; value: string; unit?: str
 
 export default function AppPage() {
     const { publicKey, connected, disconnect } = useWallet();
-    const { escrows, loading, refetch } = useEscrows();
+    const { escrows, loading, refetch, refetchSoon, updateLocalStatus } = useEscrows();
     const [filter, setFilter] = useState<Filter>("open");
+    const { items: notifications, unreadCount, loading: notifLoading, markSeen } = useNotifications(
+        escrows,
+        publicKey?.toBase58() ?? null
+    );
+
+    function goToEscrow(escrowAddress: string) {
+        // The card might be hidden by the current tab (e.g. a settled escrow
+        // while viewing "Open"), so switch to "All" before scrolling to it.
+        setFilter("all");
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                document
+                    .getElementById(`escrow-${escrowAddress}`)
+                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 60);
+        });
+    }
 
     const visibleEscrows = useMemo(() => {
         if (filter === "all") return escrows;
@@ -90,6 +110,15 @@ export default function AppPage() {
                         </span>
                     </Link>
                     <div className="flex items-center gap-3">
+                        {connected && (
+                            <NotificationBell
+                                items={notifications}
+                                unreadCount={unreadCount}
+                                loading={notifLoading}
+                                onOpen={markSeen}
+                                onSelect={goToEscrow}
+                            />
+                        )}
                         <WalletMultiButton />
                         {connected && (
                             <button
@@ -153,6 +182,12 @@ export default function AppPage() {
                         <Stat label="Settled" value={String(stats.settledCount)} />
                     </div>
 
+                    {address && (
+                        <div className="mt-4">
+                            <EmailOptIn wallet={address} />
+                        </div>
+                    )}
+
                     <div className="mt-8 grid lg:grid-cols-[minmax(0,25rem)_minmax(0,1fr)] gap-8 items-start">
                         <div className="lg:sticky lg:top-20">
                             <CreateEscrowForm onCreated={refetch} />
@@ -205,7 +240,8 @@ export default function AppPage() {
                                 <EscrowCard
                                     key={escrow.publicKey}
                                     escrow={escrow}
-                                    onActionComplete={refetch}
+                                    onActionComplete={refetchSoon}
+                                    onStatusChange={updateLocalStatus}
                                 />
                             ))}
                         </div>

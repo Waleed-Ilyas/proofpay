@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PublicKey } from "@solana/web3.js";
 import { useAnchorProgram } from "@/hooks/useAnchorProgram";
 import { supabase } from "@/lib/supabase";
@@ -8,7 +8,7 @@ import { hashRecord } from "@/lib/sampleRecord";
 import { btn, explorerAddress } from "@/components/app/ui";
 
 const LEGACY_MESSAGE =
-    "This ruling was made before ProofPay stored verdict fingerprints on Solana, so there is nothing on-chain to compare against. Rulings made from now on can be verified.";
+    "This ruling predates on-chain verification, so there's nothing on-chain to check it against.";
 
 type Result = {
     local: string;
@@ -16,6 +16,9 @@ type Result = {
     disputeAddress: string;
     matched: boolean;
 };
+
+/** null = still checking, true = can be verified, false = known unverifiable. */
+type Availability = boolean | null;
 
 const STEPS = [
     "Reading the record from the database",
@@ -28,11 +31,35 @@ const hex = (bytes: ArrayLike<number>) =>
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("");
 
+async function findDisputePda(program: any, escrowAddress: string) {
+    const enc = new TextEncoder();
+    const [pda] = PublicKey.findProgramAddressSync(
+        [enc.encode("dispute"), new PublicKey(escrowAddress).toBytes()],
+        program.programId
+    );
+    return pda;
+}
+
+/** True only if the account exists and is at least as large as the current Dispute layout. */
+async function canBeVerified(program: any, escrowAddress: string): Promise<boolean> {
+    const pda = await findDisputePda(program, escrowAddress);
+    const info = await program.provider.connection.getAccountInfo(pda);
+    if (!info) return false;
+    const expectedSize = (program.account as any).dispute.size as number | undefined;
+    if (typeof expectedSize === "number" && info.data.length < expectedSize) return false;
+    return true;
+}
+
 /**
  * Rebuilds the arbitration record exactly as the resolve-dispute route hashed it
  * (same fields, same order, latest filing per side as of the ruling), hashes it
  * locally, and compares it to the verdict_hash stored on-chain. Nothing here is
  * trusted: the only inputs are the public record and the chain.
+ *
+ * Before showing an actionable button, this checks quietly in the background
+ * whether the dispute account can even be verified (it may predate on-chain
+ * fingerprints). Rulings known not to qualify get a plain note instead of a
+ * button that would only lead to an error.
  */
 export default function VerifyRuling({
     escrowAddress,
@@ -46,9 +73,26 @@ export default function VerifyRuling({
     resolvedAt: string;
 }) {
     const { program } = useAnchorProgram();
+    const [available, setAvailable] = useState<Availability>(null);
     const [step, setStep] = useState(-1);
     const [result, setResult] = useState<Result | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const checkId = useRef(0);
+
+    useEffect(() => {
+        if (!program) return; // no wallet yet; try again once it connects
+        const id = ++checkId.current;
+        setAvailable(null);
+        canBeVerified(program, escrowAddress)
+            .then((ok) => {
+                if (id === checkId.current) setAvailable(ok);
+            })
+            .catch(() => {
+                // A network hiccup here shouldn't block the feature — fall back
+                // to showing the button, and let a real click surface any error.
+                if (id === checkId.current) setAvailable(true);
+            });
+    }, [program, escrowAddress]);
 
     async function run() {
         setError(null);
@@ -91,11 +135,7 @@ export default function VerifyRuling({
             });
 
             setStep(2);
-            const enc = new TextEncoder();
-            const [disputePda] = PublicKey.findProgramAddressSync(
-                [enc.encode("dispute"), new PublicKey(escrowAddress).toBytes()],
-                program.programId
-            );
+            const disputePda = await findDisputePda(program, escrowAddress);
             const info = await program.provider.connection.getAccountInfo(disputePda);
             if (!info) throw new Error("No dispute account was found on Solana for this escrow.");
             const expectedSize = (program.account as any).dispute.size as number | undefined;
@@ -119,7 +159,15 @@ export default function VerifyRuling({
 
     return (
         <div className="mt-4">
-            {!result && !running && (
+            {available === null && !result && !error && (
+                <div className="h-9 w-40 rounded-lg bg-edge/40 animate-pulse" aria-hidden="true" />
+            )}
+
+            {available === false && !result && (
+                <p className="text-sm text-mute">{LEGACY_MESSAGE}</p>
+            )}
+
+            {available === true && !result && !running && !error && (
                 <button onClick={run} className={btn.quiet}>
                     Verify this ruling
                 </button>

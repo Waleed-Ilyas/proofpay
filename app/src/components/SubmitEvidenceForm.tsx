@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { PublicKey } from "@solana/web3.js";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useAnchorProgram } from "@/hooks/useAnchorProgram";
 import { supabase } from "@/lib/supabase";
-import { sha256ToHex } from "@/lib/hash";
+import { sha256ToBytes, sha256ToHex } from "@/lib/hash";
 import { AttachmentPicker, btn, inputClass } from "@/components/app/ui";
 
 interface SubmitEvidenceFormProps {
@@ -10,6 +13,13 @@ interface SubmitEvidenceFormProps {
     submittedBy: string;
     role: "client" | "expert";
     onSubmitted: () => void;
+    /** True if this wallet is the one who raised the current dispute. The
+     *  raiser already recorded their evidence hash on-chain via raise_dispute;
+     *  only the OTHER party's first submission gets stamped on-chain here. */
+    isRaiser?: boolean;
+    /** Called after a successful on-chain counter-evidence submission, so the
+     *  parent can refetch the dispute and hide the countdown. */
+    onCounterEvidenceRecorded?: () => void;
 }
 
 async function uploadAttachment(
@@ -38,20 +48,31 @@ export default function SubmitEvidenceForm({
     submittedBy,
     role,
     onSubmitted,
+    isRaiser = false,
+    onCounterEvidenceRecorded,
 }: SubmitEvidenceFormProps) {
+    const { publicKey } = useWallet();
+    const { program } = useAnchorProgram();
     const [evidence, setEvidence] = useState("");
     const [file, setFile] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [chainWarning, setChainWarning] = useState<string | null>(null);
     const [submittedOnce, setSubmittedOnce] = useState(false);
 
     async function handleSubmit() {
         setError(null);
+        setChainWarning(null);
 
         if (!evidence.trim()) {
             setError("Describe your side before submitting.");
             return;
         }
+
+        // Only the counterparty's FIRST submission gets stamped on-chain — the
+        // program only accepts one counter-evidence hash per dispute, and the
+        // raiser already has their own hash on-chain from raise_dispute.
+        const shouldRecordOnChain = !isRaiser && !submittedOnce && !!program && !!publicKey;
 
         setSubmitting(true);
         try {
@@ -81,6 +102,36 @@ export default function SubmitEvidenceForm({
             setFile(null);
             setSubmittedOnce(true);
             onSubmitted();
+
+            // A failure here is kept separate from the error above: the
+            // evidence is already safely saved either way, so this only ever
+            // shows a soft warning, never blocks the form or implies the
+            // submission itself failed.
+            if (shouldRecordOnChain) {
+                try {
+                    const hashBytes = await sha256ToBytes(evidence);
+                    const escrowPubkey = new PublicKey(escrowAddress);
+                    const enc = new TextEncoder();
+                    const [disputePda] = PublicKey.findProgramAddressSync(
+                        [enc.encode("dispute"), escrowPubkey.toBytes()],
+                        program!.programId
+                    );
+                    await program!.methods
+                        .submitCounterEvidence(hashBytes)
+                        .accounts({
+                            responder: publicKey,
+                            escrow: escrowPubkey,
+                            dispute: disputePda,
+                        })
+                        .rpc();
+                    onCounterEvidenceRecorded?.();
+                } catch (chainErr: any) {
+                    console.error("submit_counter_evidence failed:", chainErr);
+                    setChainWarning(
+                        "Your evidence was saved, but couldn't be stamped on-chain to stop the response timer. You can try submitting again."
+                    );
+                }
+            }
         } catch (err: any) {
             console.error(err);
             setError(err.message ?? "Your evidence didn't save. Try again.");
@@ -110,6 +161,7 @@ export default function SubmitEvidenceForm({
                 <AttachmentPicker file={file} onChange={setFile} disabled={submitting} />
             </div>
             {error && <p className="text-sm text-flare mt-3 break-words">{error}</p>}
+            {chainWarning && <p className="text-sm text-flare mt-2 break-words">{chainWarning}</p>}
             <button onClick={handleSubmit} disabled={submitting} className={`${btn.quiet} mt-4`}>
                 {submitting ? "Submitting…" : "Submit evidence"}
             </button>

@@ -41,25 +41,90 @@ function makeNodeWallet(keypair: Keypair) {
     };
 }
 
-// Downloads a file and converts it into a Gemini inline_data part.
+// Downloads a file and converts it into an OpenAI-style image_url content
+// part (a base64 data URI), the format Groq's chat completions API expects.
 // Returns null (rather than throwing) if the fetch fails, since a broken
 // attachment shouldn't block the whole resolution — it just won't be seen.
-async function urlToInlinePart(url: string): Promise<{ inline_data: { mime_type: string; data: string } } | null> {
+async function urlToImagePart(
+    url: string
+): Promise<{ type: "image_url"; image_url: { url: string } } | null> {
     try {
         const res = await fetch(url);
         if (!res.ok) return null;
         const contentType = res.headers.get("content-type") ?? "application/octet-stream";
         const buffer = Buffer.from(await res.arrayBuffer());
-        return {
-            inline_data: {
-                mime_type: contentType,
-                data: buffer.toString("base64"),
-            },
-        };
+        const dataUri = `data:${contentType};base64,${buffer.toString("base64")}`;
+        return { type: "image_url", image_url: { url: dataUri } };
     } catch (err) {
         console.error("Failed to fetch attachment for AI review:", err);
         return null;
     }
+}
+
+function sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+type GroqResult =
+    | { ok: true; data: any }
+    | { ok: false; status: number; errText: string };
+
+/**
+ * Retries on transient failures. Three different kinds count as transient
+ * here, and each needs its body read exactly once (a Response's body can
+ * only be consumed a single time, so the ok/retry decision and the eventual
+ * parsing both happen in this one place, not split across two reads):
+ *   - 429 / 5xx: a temporary problem on Groq's side.
+ *   - 400 with code "json_validate_failed": the model's own output didn't
+ *     come back as valid JSON on this specific attempt — often because it
+ *     ran out of the token budget mid-answer. This is model-sampling
+ *     variance, not a broken request: the exact same request can fail once
+ *     and succeed on the very next try, which is exactly what happened when
+ *     this was first hit — retrying automatically here means nobody has to
+ *     notice and click the button a second time themselves.
+ * Anything else (a malformed request, an auth failure) fails immediately.
+ */
+async function callGroqWithRetry(body: unknown, maxAttempts = 3): Promise<GroqResult> {
+    let last: { status: number; errText: string } | null = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (response.ok) {
+            return { ok: true, data: await response.json() };
+        }
+
+        const errText = await response.text();
+        let errCode: string | undefined;
+        try {
+            errCode = JSON.parse(errText)?.error?.code;
+        } catch {
+            // errText wasn't JSON — errCode stays undefined, handled below.
+        }
+
+        const transient =
+            response.status === 429 ||
+            response.status >= 500 ||
+            (response.status === 400 && errCode === "json_validate_failed");
+
+        if (!transient) {
+            return { ok: false, status: response.status, errText };
+        }
+
+        last = { status: response.status, errText };
+        if (attempt < maxAttempts) {
+            await sleep(800 * 2 ** (attempt - 1)); // 800ms, 1600ms, ...
+        }
+    }
+
+    return { ok: false, status: last!.status, errText: last!.errText };
 }
 
 async function getAiVerdict(
@@ -81,53 +146,83 @@ Client's evidence: ${clientEvidence || "No evidence submitted."}
 
 Expert's evidence: ${expertEvidence || "No evidence submitted."}`;
 
-    const parts: any[] = [{ text: userPromptText }];
+    const userContent: any[] = [{ type: "text", text: userPromptText }];
 
     if (clientAttachmentUrl) {
-        const part = await urlToInlinePart(clientAttachmentUrl);
+        const part = await urlToImagePart(clientAttachmentUrl);
         if (part) {
-            parts.push({ text: "The following file was attached as the client's evidence:" });
-            parts.push(part);
+            userContent.push({ type: "text", text: "The following file was attached as the client's evidence:" });
+            userContent.push(part);
         }
     }
 
     if (expertAttachmentUrl) {
-        const part = await urlToInlinePart(expertAttachmentUrl);
+        const part = await urlToImagePart(expertAttachmentUrl);
         if (part) {
-            parts.push({ text: "The following file was attached as the expert's evidence:" });
-            parts.push(part);
+            userContent.push({ type: "text", text: "The following file was attached as the expert's evidence:" });
+            userContent.push(part);
         }
     }
 
-    const response = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "x-goog-api-key": process.env.GEMINI_API_KEY!,
-            },
-            body: JSON.stringify({
-                system_instruction: { parts: [{ text: systemPrompt }] },
-                contents: [{ role: "user", parts }],
-            }),
-        }
-    );
+    // qwen/qwen3.8-27b on Groq: accepts text + image_url content parts, and
+    // supports response_format: json_object for a guaranteed-JSON reply.
+    const response = await callGroqWithRetry({
+        model: "qwen/qwen3.8-27b",
+        messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userContent },
+        ],
+        response_format: { type: "json_object" },
+        // The reply is a short JSON object (a boolean and 2-3 sentences),
+        // realistically well under 150 tokens. Capping it here matters: this
+        // model defaults to a much larger max_tokens when none is given,
+        // and Groq's free/on-demand tier enforces a per-minute OUTPUT token
+        // ceiling that a single uncapped request can exceed on its own —
+        // that's a hard, deterministic failure, not something retrying fixes.
+        // Bumped from 500: a truncated response (cut off before its closing
+        // brace) is invalid JSON, and Groq's JSON mode rejects it outright —
+        // 700 leaves more room for the full 2-3 sentence reasoning while
+        // staying safely under the account's 1000-token-per-minute cap.
+        max_tokens: 700,
+        // Skips Qwen's internal "thinking" mode, which can spend a large,
+        // unpredictable share of the output-token budget on reasoning the
+        // model doesn't show, before it ever writes the actual JSON answer.
+        reasoning_effort: "none",
+    });
 
     if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Gemini API error: ${response.status} ${errText}`);
+        console.error(`Groq API error: ${response.status} ${response.errText}`);
+
+        if (response.status === 429 || response.status >= 500) {
+            throw new Error(
+                "The AI arbitrator is temporarily overloaded (this is on Groq's side, not this app). Please wait a moment and press Resolve with AI again."
+            );
+        }
+        if (response.status === 400) {
+            throw new Error(
+                "The AI arbitrator had trouble producing a valid ruling. Please press Resolve with AI again."
+            );
+        }
+        throw new Error("The AI arbitrator couldn't reach the model. Please try again.");
     }
 
-    const data = await response.json();
-    const rawText = data.candidates?.[0]?.content?.parts?.find((p: any) => p.text)?.text;
-    if (!rawText) throw new Error("Gemini response had no text content");
+    const data = response.data;
+    const rawText = data.choices?.[0]?.message?.content;
+    if (!rawText) throw new Error("The AI arbitrator returned an empty response. Please try again.");
 
     const cleaned = rawText.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(cleaned);
+
+    let parsed: any;
+    try {
+        parsed = JSON.parse(cleaned);
+    } catch {
+        console.error("Gemini response was not valid JSON:", rawText);
+        throw new Error("The AI arbitrator's response couldn't be read. Please try again.");
+    }
 
     if (typeof parsed.favor_expert !== "boolean" || typeof parsed.reasoning !== "string") {
-        throw new Error("Gemini response did not match expected shape");
+        console.error("Gemini response did not match expected shape:", parsed);
+        throw new Error("The AI arbitrator's response was incomplete. Please try again.");
     }
 
     return parsed;

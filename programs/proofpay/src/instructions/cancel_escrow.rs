@@ -40,8 +40,11 @@ pub struct CancelEscrow<'info> {
 
     #[account(
         mut,
-        seeds = [b"escrow", escrow.client.as_ref(), escrow.expert.as_ref()],
-        bump = escrow.bump
+        seeds = [b"escrow", escrow.client.as_ref(), escrow.expert.as_ref(), escrow.nonce.to_le_bytes().as_ref()],
+        bump = escrow.bump,
+        // Returns the escrow's rent to the client and frees this client/expert
+        // pair to create a new escrow afterward.
+        close = client
     )]
     pub escrow: Account<'info, Escrow>,
 
