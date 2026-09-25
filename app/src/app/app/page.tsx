@@ -9,6 +9,7 @@ import { EscrowCard } from "@/components/EscrowCard";
 import { VaultScene } from "@/components/landing/VaultScene";
 import { CopyButton, btn, formatSol, shorten } from "@/components/app/ui";
 import { NotificationBell } from "@/components/app/NotificationBell";
+import { SettledToast, type ToastState } from "@/components/app/SettledToast";
 import { EmailOptIn } from "@/components/app/EmailOptIn";
 import { useEscrows } from "@/hooks/useEscrows";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -61,6 +62,7 @@ export default function AppPage() {
     const { publicKey, connected, disconnect } = useWallet();
     const { escrows, loading, refetch, refetchSoon, updateLocalStatus } = useEscrows();
     const [filter, setFilter] = useState<Filter>("open");
+    const [toast, setToast] = useState<ToastState | null>(null);
     const { items: notifications, unreadCount, loading: notifLoading, markSeen } = useNotifications(
         escrows,
         publicKey?.toBase58() ?? null
@@ -242,12 +244,21 @@ export default function AppPage() {
                                     escrow={escrow}
                                     onActionComplete={refetchSoon}
                                     onStatusChange={updateLocalStatus}
+                                    onSettled={(escrowAddress, message) =>
+                                        setToast({ escrowAddress, message })
+                                    }
                                 />
                             ))}
                         </div>
                     </div>
                 </section>
             )}
+
+            <SettledToast
+                toast={toast}
+                onView={goToEscrow}
+                onDismiss={() => setToast(null)}
+            />
         </main>
     );
 }

@@ -73,7 +73,16 @@ export function useDispute(escrowAddress: string, enabled: boolean) {
 
     useEffect(() => {
         fetchDispute();
-    }, [fetchDispute]);
+        if (!enabled) return;
+        // Without this, only the wallet that just submitted evidence ever
+        // sees its own state refresh (its own on-screen action triggers a
+        // manual refetch). Whoever is waiting on the OTHER side would
+        // otherwise be stuck looking at stale data until they reload the
+        // page — including the Resolve with AI gate below, which depends on
+        // knowing the moment the other party responds.
+        const id = setInterval(fetchDispute, 15_000);
+        return () => clearInterval(id);
+    }, [fetchDispute, enabled]);
 
     return { dispute, refetch: fetchDispute, loading };
 }

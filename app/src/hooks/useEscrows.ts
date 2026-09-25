@@ -141,9 +141,20 @@ export function useEscrows() {
         }
     }, [program, publicKey]);
 
+    // Without this, this list only ever updates from the CURRENT wallet's own
+    // actions — anything the OTHER party does (creating an escrow with you as
+    // the expert, accepting one, raising a dispute, resolving it) would
+    // otherwise be invisible here until a manual page reload. This is the
+    // same fix already applied to the per-dispute timer, extended to the
+    // main escrow list itself, which had no polling at all until now.
+    const POLL_MS = 15_000;
+
     useEffect(() => {
         fetchEscrows();
-    }, [fetchEscrows]);
+        if (!program || !publicKey) return;
+        const id = setInterval(fetchEscrows, POLL_MS);
+        return () => clearInterval(id);
+    }, [fetchEscrows, program, publicKey]);
 
     /**
      * Applies a status change immediately, from a transaction we already know

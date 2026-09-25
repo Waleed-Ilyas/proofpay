@@ -34,4 +34,7 @@ pub enum ProofPayError {
 
     #[msg("Counter-evidence was submitted, so this dispute can no longer be timed out")]
     CounterEvidenceAlreadySubmittedForTimeout,
+
+    #[msg("The other party hasn't submitted their evidence yet — both sides must respond before the arbitrator can rule")]
+    CounterEvidenceRequired,
 }

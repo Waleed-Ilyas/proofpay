@@ -26,7 +26,11 @@ const faqs = [
   },
   {
     q: "What if the client never releases the payment?",
-    a: "The expert can raise a dispute while the escrow is active, and the arbitrator rules on the evidence. There is no timer in the program yet, so a dispute is the way out.",
+    a: "The expert can raise a dispute while the escrow is active. A 12-hour clock starts the moment it's raised: if the client never responds with their own evidence, the expert can claim the funds directly once that window closes — no ruling required. If the client does respond, the AI arbitrator rules on the evidence from both sides instead.",
+  },
+  {
+    q: "What if someone raises a dispute and then goes silent?",
+    a: "The same 12-hour window protects the other side too. Once it closes with no response, whoever raised the dispute can claim the funds themselves. The arbitrator only rules once both sides have actually filed evidence — it won't hear only one side of the story.",
   },
   {
     q: "Can someone change their evidence after filing?",
@@ -38,7 +42,7 @@ const faqs = [
   },
   {
     q: "Can I open a second escrow with the same person?",
-    a: "Not yet. Each client and expert wallet pair gets one escrow, so to run another you'll need a different wallet on either side.",
+    a: "Yes. Once a deal between the same two wallets settles, either by release, refund, a ruling, or a claimed timeout, they're free to create a new escrow together. Each deal gets its own independent address and its own history, so nothing from an old deal carries into a new one.",
   },
 ];
 
@@ -193,6 +197,7 @@ export default function Landing() {
               <ul className="mt-5 space-y-3 text-mute leading-relaxed">
                 <li>Send the SOL to anyone other than the client or the expert.</li>
                 <li>Rule a second time on a dispute that is already resolved.</li>
+                <li>Rule until both sides have actually filed evidence — the program checks this itself.</li>
                 <li>Quietly alter a ruling afterwards. The published record would stop matching its fingerprint.</li>
               </ul>
             </div>
@@ -208,6 +213,12 @@ export default function Landing() {
               </li>
               <li>This runs on Solana devnet and has not been audited. Use test SOL only.</li>
               <li>Attachments are stored at public links, so don&apos;t upload anything private.</li>
+              <li>
+                The service that triggers a ruling doesn&apos;t yet check that the caller is actually
+                the client or expert on that escrow, and evidence text isn&apos;t hardened against
+                someone trying to instruct the model directly. Worth knowing if you&apos;re testing this
+                seriously.
+              </li>
             </ul>
           </div>
         </div>

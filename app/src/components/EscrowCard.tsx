@@ -75,11 +75,16 @@ export function EscrowCard({
     escrow,
     onActionComplete,
     onStatusChange,
+    onSettled,
 }: {
     escrow: EscrowData;
     onActionComplete: () => void;
     /** Optional: apply a known-good status immediately, without waiting on a refetch. */
     onStatusChange?: (publicKey: string, status: string) => void;
+    /** Optional: announce a just-settled outcome (release, cancel, a ruling,
+     *  or a claimed timeout), so the app can show a clear confirmation
+     *  instead of the card just quietly disappearing into Settled/All. */
+    onSettled?: (escrowAddress: string, message: string) => void;
 }) {
     const { publicKey } = useWallet();
     const { program } = useAnchorProgram();
@@ -93,6 +98,16 @@ export function EscrowCard({
         escrow.publicKey,
         escrow.status === "disputed"
     );
+    // The raiser's evidence is already on-chain from the moment they raised
+    // the dispute — counterSubmitted tracks whether the OTHER side has now
+    // done the same. Until both have, resolving would only ever be hearing
+    // one side of the story.
+    const bothSidesFiled = dispute?.counterSubmitted ?? false;
+    const waitingOnRole: "client" | "expert" | null = dispute
+        ? dispute.raisedBy === escrow.client
+            ? "expert"
+            : "client"
+        : null;
 
     // Pulse the badge when the escrow moves to a new state, so the lifecycle
     // is visible as it happens rather than just silently re-rendering.
@@ -158,6 +173,12 @@ export function EscrowCard({
                 onStatusChange?.(escrow.publicKey, nextStatus);
                 if (nextStatus === "completed" || nextStatus === "refunded") {
                     await recordSettledEscrow(escrow, nextStatus, signature);
+                    onSettled?.(
+                        escrow.publicKey,
+                        nextStatus === "completed"
+                            ? "Funds released to the expert — check Settled or All."
+                            : "Escrow cancelled and refunded — check Settled or All."
+                    );
                 }
             }
             onActionComplete();
@@ -238,6 +259,8 @@ export function EscrowCard({
                     {escrow.status === "disputed" && (
                         <ResolveWithAiButton
                             escrowAddress={escrow.publicKey}
+                            canResolve={bothSidesFiled}
+                            waitingOnRole={waitingOnRole}
                             onResolved={(r) => {
                                 if (r?.txSignature) {
                                     setLastTx(r.txSignature);
@@ -247,6 +270,12 @@ export function EscrowCard({
                                     const settledStatus = r.favorExpert ? "completed" : "refunded";
                                     onStatusChange?.(escrow.publicKey, settledStatus);
                                     recordSettledEscrow(escrow, settledStatus, r.txSignature);
+                                    onSettled?.(
+                                        escrow.publicKey,
+                                        `The arbitrator ruled for the ${
+                                            r.favorExpert ? "expert" : "client"
+                                        } — check Settled or All to see the outcome.`
+                                    );
                                 }
                                 onActionComplete();
                             }}
@@ -303,6 +332,10 @@ export function EscrowCard({
                                 dispute.raisedBy === escrow.expert ? "completed" : "refunded";
                             onStatusChange?.(escrow.publicKey, settledStatus);
                             recordSettledEscrow(escrow, settledStatus, signature);
+                            onSettled?.(
+                                escrow.publicKey,
+                                "The response window closed with no reply — funds settled. Check Settled or All."
+                            );
                             onActionComplete();
                         }}
                     />

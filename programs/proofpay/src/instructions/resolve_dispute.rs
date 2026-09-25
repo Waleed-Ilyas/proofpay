@@ -19,6 +19,17 @@ pub fn handle_resolve_dispute(
         ProofPayError::InvalidEscrowStatus
     );
 
+    // The raiser's evidence is already on-chain from the moment they raised
+    // this dispute (evidence_hash, set in raise_dispute). This is the real
+    // enforcement of "both sides get a hearing" — without it, a ruling
+    // could be made having heard only one side, and nothing on-chain would
+    // have stopped it. The frontend already guides people this way, but
+    // this is what makes it an actual rule rather than a suggestion.
+    require!(
+        ctx.accounts.dispute.counter_hash != [0u8; 32],
+        ProofPayError::CounterEvidenceRequired
+    );
+
     let amount = ctx.accounts.escrow.amount;
 
     if favor_expert {

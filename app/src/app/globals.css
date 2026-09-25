@@ -335,6 +335,20 @@ body {
   }
 }
 
+@keyframes pp-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+
+  20%, 60% {
+    transform: translateX(-4px);
+  }
+
+  40%, 80% {
+    transform: translateX(4px);
+  }
+}
+
 @keyframes pp-scan {
   from {
     transform: translateX(-100%);
@@ -377,6 +391,10 @@ body {
   animation: pp-scan 1.6s ease-in-out infinite;
 }
 
+.pp-shake {
+  animation: pp-shake 0.4s ease-in-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -391,7 +409,8 @@ body {
   .pp-dot-1,
   .pp-dot-2,
   .pp-dot-3,
-  .pp-scan {
+  .pp-scan,
+  .pp-shake {
     animation: none;
   }
 }

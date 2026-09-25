@@ -718,6 +718,11 @@
       "code": 6010,
       "name": "CounterEvidenceAlreadySubmittedForTimeout",
       "msg": "Counter-evidence was submitted, so this dispute can no longer be timed out"
+    },
+    {
+      "code": 6011,
+      "name": "CounterEvidenceRequired",
+      "msg": "The other party hasn't submitted their evidence yet — both sides must respond before the arbitrator can rule"
     }
   ],
   "types": [

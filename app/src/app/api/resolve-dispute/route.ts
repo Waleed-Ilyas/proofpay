@@ -269,6 +269,24 @@ export async function POST(request: Request) {
             );
         }
 
+        // The program itself now enforces this on-chain (resolve_dispute
+        // requires counter_hash to be set) — this check here isn't what
+        // makes the rule real, it just fails fast, before spending a Groq
+        // call, on an attempt the chain would reject anyway at the very end.
+        const counterHashBytes: number[] = Array.from(
+            disputeAccount.counterHash ?? disputeAccount.counter_hash ?? []
+        );
+        const counterEvidenceSubmitted = counterHashBytes.some((b) => b !== 0);
+        if (!counterEvidenceSubmitted) {
+            return NextResponse.json(
+                {
+                    error:
+                        "The other party hasn't submitted their evidence yet. Both sides need to respond before this dispute can be resolved.",
+                },
+                { status: 400 }
+            );
+        }
+
         const { data: metadataRow } = await supabaseAdmin
             .from("escrow_metadata")
             .select("description")

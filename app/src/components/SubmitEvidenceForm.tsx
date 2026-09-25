@@ -56,26 +56,75 @@ export default function SubmitEvidenceForm({
     const [evidence, setEvidence] = useState("");
     const [file, setFile] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [stage, setStage] = useState<"chain" | "saving" | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [chainWarning, setChainWarning] = useState<string | null>(null);
     const [submittedOnce, setSubmittedOnce] = useState(false);
+    // True once submit_counter_evidence has actually succeeded on-chain, even
+    // if the written explanation below hasn't saved yet — this is what lets a
+    // retry (after, say, a Supabase hiccup) skip trying the chain step again,
+    // since the program only ever accepts one counter-evidence hash.
+    const [onChainDone, setOnChainDone] = useState(false);
 
     async function handleSubmit() {
         setError(null);
-        setChainWarning(null);
 
         if (!evidence.trim()) {
             setError("Describe your side before submitting.");
             return;
         }
 
-        // Only the counterparty's FIRST submission gets stamped on-chain — the
-        // program only accepts one counter-evidence hash per dispute, and the
-        // raiser already has their own hash on-chain from raise_dispute.
-        const shouldRecordOnChain = !isRaiser && !submittedOnce && !!program && !!publicKey;
+        // Only the counterparty's FIRST submission needs an on-chain stamp —
+        // that's what actually stops the 12-hour response timer, not this
+        // form's own record of it.
+        const needsOnChainStep =
+            !isRaiser && !submittedOnce && !onChainDone && !!program && !!publicKey;
 
         setSubmitting(true);
         try {
+            // The on-chain step runs FIRST, before anything is shown as
+            // "submitted" — the same order raising a dispute already uses.
+            // Doing it the other way around (save first, sign after) let
+            // evidence appear as filed on screen while the timer kept
+            // running, if the wallet step then failed or was rejected.
+            if (needsOnChainStep) {
+                setStage("chain");
+                const hashBytes = await sha256ToBytes(evidence);
+                const escrowPubkey = new PublicKey(escrowAddress);
+                const enc = new TextEncoder();
+                const [disputePda] = PublicKey.findProgramAddressSync(
+                    [enc.encode("dispute"), escrowPubkey.toBytes()],
+                    program!.programId
+                );
+
+                try {
+                    await program!.methods
+                        .submitCounterEvidence(hashBytes)
+                        .accounts({
+                            responder: publicKey,
+                            escrow: escrowPubkey,
+                            dispute: disputePda,
+                        })
+                        .rpc();
+                } catch (chainErr: any) {
+                    const alreadyDone = /already been submitted/i.test(chainErr?.message ?? "");
+                    if (!alreadyDone) {
+                        console.error("submit_counter_evidence failed:", chainErr);
+                        setError(
+                            chainErr?.message ??
+                                "Your response couldn't be recorded on Solana. Try again."
+                        );
+                        setSubmitting(false);
+                        setStage(null);
+                        return;
+                    }
+                    // A prior attempt already landed on-chain (e.g. the page
+                    // was reloaded after that succeeded but before the text
+                    // below saved) — nothing left to do on-chain, continue on.
+                }
+                setOnChainDone(true);
+            }
+
+            setStage("saving");
             const hashHex = await sha256ToHex(evidence);
 
             let attachmentUrl: string | null = null;
@@ -95,50 +144,32 @@ export default function SubmitEvidenceForm({
                 });
 
             if (supabaseError) {
-                throw new Error(`Supabase insert failed: ${supabaseError.message}`);
+                throw new Error(
+                    needsOnChainStep || onChainDone
+                        ? `Your response was already recorded on Solana, but this written explanation didn't save (${supabaseError.message}). Please try again — it won't touch the blockchain step again.`
+                        : `Supabase insert failed: ${supabaseError.message}`
+                );
             }
 
             setEvidence("");
             setFile(null);
             setSubmittedOnce(true);
             onSubmitted();
-
-            // A failure here is kept separate from the error above: the
-            // evidence is already safely saved either way, so this only ever
-            // shows a soft warning, never blocks the form or implies the
-            // submission itself failed.
-            if (shouldRecordOnChain) {
-                try {
-                    const hashBytes = await sha256ToBytes(evidence);
-                    const escrowPubkey = new PublicKey(escrowAddress);
-                    const enc = new TextEncoder();
-                    const [disputePda] = PublicKey.findProgramAddressSync(
-                        [enc.encode("dispute"), escrowPubkey.toBytes()],
-                        program!.programId
-                    );
-                    await program!.methods
-                        .submitCounterEvidence(hashBytes)
-                        .accounts({
-                            responder: publicKey,
-                            escrow: escrowPubkey,
-                            dispute: disputePda,
-                        })
-                        .rpc();
-                    onCounterEvidenceRecorded?.();
-                } catch (chainErr: any) {
-                    console.error("submit_counter_evidence failed:", chainErr);
-                    setChainWarning(
-                        "Your evidence was saved, but couldn't be stamped on-chain to stop the response timer. You can try submitting again."
-                    );
-                }
-            }
+            if (needsOnChainStep || onChainDone) onCounterEvidenceRecorded?.();
         } catch (err: any) {
             console.error(err);
             setError(err.message ?? "Your evidence didn't save. Try again.");
         } finally {
             setSubmitting(false);
+            setStage(null);
         }
     }
+
+    const buttonLabel = submitting
+        ? stage === "chain"
+            ? "Confirm in your wallet…"
+            : "Saving…"
+        : "Submit evidence";
 
     return (
         <div className="p-5 sm:p-6 border-t border-edge">
@@ -161,9 +192,8 @@ export default function SubmitEvidenceForm({
                 <AttachmentPicker file={file} onChange={setFile} disabled={submitting} />
             </div>
             {error && <p className="text-sm text-flare mt-3 break-words">{error}</p>}
-            {chainWarning && <p className="text-sm text-flare mt-2 break-words">{chainWarning}</p>}
             <button onClick={handleSubmit} disabled={submitting} className={`${btn.quiet} mt-4`}>
-                {submitting ? "Submitting…" : "Submit evidence"}
+                {buttonLabel}
             </button>
         </div>
     );

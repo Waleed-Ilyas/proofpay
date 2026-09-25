@@ -33,9 +33,17 @@ export default function DisputeEvidence({
     useEffect(() => {
         let cancelled = false;
 
-        async function fetchEvidence() {
-            setLoading(true);
-            setError(null);
+        // isBackground=true is a quiet poll tick: it updates the data without
+        // ever showing the loading skeleton or an error banner for a passing
+        // hiccup. Without this, the other party filing evidence while you're
+        // already looking at this panel would stay invisible until you
+        // reloaded the page — the same class of gap already fixed elsewhere
+        // (the dispute timer, the main escrow list), applied here too.
+        async function fetchEvidence(isBackground: boolean) {
+            if (!isBackground) {
+                setLoading(true);
+                setError(null);
+            }
 
             const { data, error: fetchError } = await supabase
                 .from("dispute_evidence")
@@ -46,17 +54,25 @@ export default function DisputeEvidence({
             if (cancelled) return;
 
             if (fetchError) {
-                setError(fetchError.message);
-                setRows([]);
+                if (isBackground) {
+                    console.error("Background evidence refresh failed:", fetchError);
+                } else {
+                    setError(fetchError.message);
+                    setRows([]);
+                }
             } else {
                 setRows((data as EvidenceRow[]) ?? []);
             }
-            setLoading(false);
+
+            if (!isBackground) setLoading(false);
         }
 
-        fetchEvidence();
+        fetchEvidence(false);
+        const id = setInterval(() => fetchEvidence(true), 15_000);
+
         return () => {
             cancelled = true;
+            clearInterval(id);
         };
     }, [escrowAddress, refreshKey]);
 

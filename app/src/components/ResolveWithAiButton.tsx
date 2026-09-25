@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { btn } from "@/components/app/ui";
 
+export type WaitingOnRole = "client" | "expert" | null;
+
 // Mirrors what the API route actually does, so the wait reads as progress
 // rather than a frozen screen. Timings are approximate; the real work is
 // gated on the network, so the last stage holds until the response lands.
@@ -18,13 +20,23 @@ export type ResolveResult = { txSignature?: string; verdictHash?: string; favorE
 export default function ResolveWithAiButton({
     escrowAddress,
     onResolved,
+    canResolve,
+    waitingOnRole,
 }: {
     escrowAddress: string;
     onResolved: (result?: ResolveResult) => void;
+    /** False until BOTH sides have filed evidence. The raiser's evidence is
+     *  already on-chain from the moment the dispute was raised, so this is
+     *  really "has the other party responded yet" — a UI convenience, not an
+     *  on-chain rule (the program itself doesn't require this). */
+    canResolve: boolean;
+    /** Who we're still waiting on, for the explanatory message. */
+    waitingOnRole: WaitingOnRole;
 }) {
     const [loading, setLoading] = useState(false);
     const [stage, setStage] = useState(0);
     const [error, setError] = useState<string | null>(null);
+    const [shake, setShake] = useState(false);
 
     useEffect(() => {
         if (!loading) {
@@ -98,6 +110,35 @@ export default function ResolveWithAiButton({
                         </p>
                     ))}
                 </div>
+            </div>
+        );
+    }
+
+    function handleBlockedClick() {
+        // Not html-disabled on purpose: a dead, unclickable button gives no
+        // feedback about WHY. This stays clickable, explains itself, and
+        // gives a small nudge so the click clearly registered.
+        setShake(true);
+        setTimeout(() => setShake(false), 420);
+    }
+
+    if (!canResolve) {
+        const roleLabel = waitingOnRole === "client" ? "client" : "expert";
+        return (
+            <div>
+                <button
+                    type="button"
+                    onClick={handleBlockedClick}
+                    aria-disabled="true"
+                    className={`${btn.primary} opacity-40 saturate-50 cursor-not-allowed ${
+                        shake ? "pp-shake" : ""
+                    }`}
+                >
+                    Resolve with AI
+                </button>
+                <p className="text-xs text-mute mt-2 max-w-xs">
+                    Waiting on the {roleLabel} to file their evidence before this can be resolved.
+                </p>
             </div>
         );
     }
