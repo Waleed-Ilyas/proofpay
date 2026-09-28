@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAnchorProgram } from "./useAnchorProgram";
 import { supabase } from "@/lib/supabase";
+import { scanEscrows } from "@/lib/scanEscrows";
 
 export interface EscrowData {
     publicKey: string;
@@ -37,6 +38,13 @@ export function useEscrows() {
     const pins = useRef(new Map<string, { status: string; expiresAt: number }>());
     const PIN_DURATION_MS = 20_000;
 
+    // Which wallet the list currently on screen belongs to. Lets a failed
+    // background poll keep showing the last good list for the SAME wallet
+    // instead of blanking it, without ever showing one wallet's escrows
+    // under another.
+    const listOwner = useRef<string | null>(null);
+    const lastSkippedLogged = useRef(0);
+
     const fetchEscrows = useCallback(async () => {
         if (!program || !publicKey) {
             setEscrows([]);
@@ -46,18 +54,27 @@ export function useEscrows() {
         setLoading(true);
         const myVersion = ++version.current;
         try {
-            const accountNamespace = program.account as any;
-
+            // Each account is decoded on its own (see scanEscrows) so one
+            // account from before the nonce upgrade, which can't be decoded
+            // anymore, can't blank the whole list the way Anchor's .all() does.
+            const wallet = publicKey.toBase58();
             const [asClient, asExpert] = await Promise.all([
-                accountNamespace.escrow.all([
-                    { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
-                ]),
-                accountNamespace.escrow.all([
-                    { memcmp: { offset: 40, bytes: publicKey.toBase58() } },
-                ]),
+                scanEscrows(program, 8, wallet),
+                scanEscrows(program, 40, wallet),
             ]);
 
-            const combined = [...asClient, ...asExpert];
+            const skipped = asClient.skipped + asExpert.skipped;
+            if (skipped !== lastSkippedLogged.current) {
+                lastSkippedLogged.current = skipped;
+                if (skipped > 0) {
+                    console.info(
+                        `Skipped ${skipped} escrow account(s) from before the nonce upgrade — ` +
+                            "their layout can no longer be read, so they don't appear in the list."
+                    );
+                }
+            }
+
+            const combined = [...asClient.items, ...asExpert.items];
             const seen = new Set<string>();
             const parsed: EscrowData[] = [];
 
@@ -131,11 +148,17 @@ export function useEscrows() {
             // this result is stale (a slow public devnet RPC can resolve out
             // of order) — drop it instead of overwriting fresher local state.
             if (myVersion === version.current) {
+                listOwner.current = publicKey.toBase58();
                 setEscrows(withHistory);
             }
         } catch (err) {
             console.error("Failed to fetch escrows:", err);
-            if (myVersion === version.current) setEscrows([]);
+            // A failed poll (a rate-limited public RPC, a dropped request)
+            // shouldn't blank a list that was fine a moment ago — keep it.
+            // Only clear if what's on screen belongs to a different wallet.
+            if (myVersion === version.current && listOwner.current !== publicKey.toBase58()) {
+                setEscrows([]);
+            }
         } finally {
             if (myVersion === version.current) setLoading(false);
         }

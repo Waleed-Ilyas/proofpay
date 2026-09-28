@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Connection, Keypair, PublicKey, clusterApiUrl } from "@solana/web3.js";
 import { AnchorProvider, Program } from "@coral-xyz/anchor";
 import idl from "@/idl/proofpay.json";
+import { resilientConnection } from "@/lib/resilientConnection";
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -236,9 +237,10 @@ export async function POST(request: Request) {
         }
 
         const validatorKeypair = loadValidatorKeypair();
-        const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+        const connection = resilientConnection(new Connection(clusterApiUrl("devnet"), "confirmed"));
         const provider = new AnchorProvider(connection, makeNodeWallet(validatorKeypair) as any, {
             commitment: "confirmed",
+            preflightCommitment: "confirmed",
         });
         const program = new Program(idl as any, provider);
 
